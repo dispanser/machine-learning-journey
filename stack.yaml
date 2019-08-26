@@ -1,0 +1,16 @@
+resolver: lts-14.1
+packages:
+  - '.'
+extra-deps:
+  - hmatrix-0.20.0.0
+  # - diagrams-lib-1.4.2.3
+  # - diagrams-svg-1.4.2
+  # - test-invariant-0.4.5.0
+
+flags:
+    hmatrix:
+        openblas:              true
+        disable-default-paths: true
+nix:
+  enable: true
+  packages: [ openblasCompat, liblapack ]

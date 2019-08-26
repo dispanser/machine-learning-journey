@@ -1,0 +1,53 @@
+name: isl
+version: '0.0.0'
+category: template
+synopsis: Introduction to Statistical Learning, Haskell Edition
+description: >
+  aims to reproduce all code examples from Introduction to Statistical Learning using Haskell
+author: Thomas Peiselt
+github: dispanser/isl-haskell
+license: MIT
+
+ghc-options: -Wall
+dependencies:
+  - base >= 4.8.0 && <5
+  - vector
+
+library:
+  source-dirs: src
+  dependencies:
+    - random
+    - containers
+    - unordered-containers
+    - hashable
+    - microlens
+    - Chart
+    - hmatrix
+    - statistics
+
+tests:
+  tasty:
+    source-dirs: tasty
+    main: Discover.hs
+    dependencies:
+      - containers
+      - unordered-containers
+      - isl
+      - csv
+      - hspec
+      - QuickCheck
+      - tasty
+      - tasty-discover
+      - tasty-quickcheck
+      - tasty-hunit
+      - tasty-hspec
+
+benchmarks:
+  benchmark-criterion:
+    main: Bench.hs
+    source-dirs: bench
+    ghc-options:
+      - -threaded
+    dependencies:
+      - isl
+      - criterion
