@@ -3,7 +3,7 @@ version: '0.0.0'
 category: template
 synopsis: Introduction to Statistical Learning, Haskell Edition
 description: >
-  aims to reproduce all code examples from Introduction to Statistical Learning using Haskell
+  aims to reproduce examples and exercises from 'Introduction to Statistical Learning' using Haskell
 author: Thomas Peiselt
 github: dispanser/isl-haskell
 license: MIT
@@ -12,6 +12,7 @@ ghc-options: -Wall
 dependencies:
   - base >= 4.8.0 && <5
   - vector
+  - text
 
 library:
   source-dirs: src
