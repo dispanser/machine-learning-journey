@@ -24,9 +24,14 @@ data LinearRegression = LinearRegression
     } deriving (Show, Eq, Ord)
 
 instance Predictor LinearRegression where
-    predict LinearRegression { .. } xss =
-        V.convert $ predictLinearRegression lrCoefficients (V.convert <$> xss)
+  predict LinearRegression { .. } xss =
+      V.convert $ predictLinearRegression lrCoefficients (V.convert <$> xss)
 
+instance Summary LinearRegression where
+  summary LinearRegression { .. } =
+      unlines [ "-- Linear Regression --" ]
+
+linearRegression :: [Vector Double] -> Vector Double -> LinearRegression
 linearRegression xs y =
     let n                = V.length y
         xX               = prepareMatrix n xs
