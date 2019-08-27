@@ -16,7 +16,7 @@ runExample = do
             [ "LotArea" :: Text, "YearBuilt", "1stFlrSF", "2ndFlrSF", "FullBath"
             , "BedroomAbvGr", "TotRmsAbvGrd", "SalePrice" ]
     fullHousingDS <- DS.readCsvWithHeader "data/housing/train.csv"
-    let Just myHousingDS@DataSet {..} = DS.extractDataSet startColumnNames fullHousingDS
+    let Just myHousingDS@DataSet {..} = DS.extractModelInput startColumnNames fullHousingDS
     let Just xX = DS.extractFeatureVectors (init startColumnNames) myHousingDS
     let Just y  = DS.extractFeatureVector "SalePrice" myHousingDS
     let lrFit   = OLS.linearRegression (convert <$> xX) (convert y)

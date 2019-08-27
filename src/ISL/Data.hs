@@ -34,41 +34,42 @@ class Summary a where
 
 -- represents the input data, i.e. the housing dataset in its raw form
 data DataSet = DataSet
-    { name        :: Text
-    , columnNames :: Vector Text
-    , columnData  :: [Vector Double]
+    { dsName        :: Text
+    , dsColumnNames :: Vector Text
+    , dsColumnData  :: [Vector Double]
     } deriving (Show)
 
 -- TODO: better name, please
 -- represents the input to a fit procedure: a data set and the
 -- names of the features, the name of the response etc.
+
 data ModelInput = ModelInput
-    { dataSet  :: DataSet
-    , features :: [Text]
-    , response :: Text }
+    { miName     :: !DataSet
+    , miFeatures :: ![Text]
+    , miResponse :: Text }
 
 readCsvWithHeader :: FilePath -> IO DataSet
 readCsvWithHeader f =
     parseCSVFromFile f >>= \case
         Right csv ->
-            let columnNames = V.fromList $ T.pack <$> head csv
-                columnData  = createColumns $ tail csv
-                name        = T.pack f
+            let dsColumnNames = V.fromList $ T.pack <$> head csv
+                dsColumnData  = createColumns $ tail csv
+                dsName        = T.pack f
             in return $ DataSet { .. }
         Left  err -> error $ show err
 
 extractFeatureVector :: Text -> DataSet -> Maybe (Vector Double)
 extractFeatureVector colName DataSet { .. } =
-    (columnData !!) <$> V.elemIndex colName columnNames
+    (dsColumnData !!) <$> V.elemIndex colName dsColumnNames
 
 extractFeatureVectors :: [Text] -> DataSet -> Maybe [Vector Double]
 extractFeatureVectors colNames ds = traverse (flip extractFeatureVector ds) colNames
 
-extractDataSet :: [Text] -> DataSet -> Maybe DataSet
-extractDataSet colNames ds@DataSet { .. }  = do
+extractModelInput :: [Text] -> DataSet -> Maybe DataSet
+extractModelInput colNames ds@DataSet { .. }  = do
     cn <- extractFeatureVectors colNames ds
-    return ds { columnNames = V.fromList colNames
-              , columnData  = cn }
+    return ds { dsColumnNames = V.fromList colNames
+              , dsColumnData  = cn }
 
 -- TODO: use mutable, pre-allocated vectors for performance
 createColumns :: [Record] -> [Vector Double]
