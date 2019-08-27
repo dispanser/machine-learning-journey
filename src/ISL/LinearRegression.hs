@@ -2,7 +2,8 @@
 
 module ISL.LinearRegression where
 
-import           ISL.DataSet
+import qualified ISL.DataSet as DS
+import           ISL.DataSet (ModelInput(..), Column(..))
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Data.Vector.Storable as V
@@ -23,13 +24,16 @@ data LinearRegression = LinearRegression
     , p                :: Int
     } deriving (Show, Eq, Ord)
 
-instance Predictor LinearRegression where
+instance DS.Predictor LinearRegression where
   predict LinearRegression { .. } xss =
       V.convert $ predictLinearRegression lrCoefficients (V.convert <$> xss)
 
-instance Summary LinearRegression where
+instance DS.Summary LinearRegression where
   summary LinearRegression { .. } =
       unlines [ "-- Linear Regression --" ]
+
+instance DS.ModelFit LinearRegression where
+  fit ModelInput { .. } = linearRegression (V.convert . colData <$> miFeatures) (V.convert $ colData miResponse)
 
 linearRegression :: [Vector Double] -> Vector Double -> LinearRegression
 linearRegression xs y =

@@ -32,6 +32,9 @@ class Predictor a where
 class Summary a where
   summary :: a -> String
 
+class ModelFit a where
+  fit :: ModelInput -> a
+
 -- represents the input data, i.e. the housing dataset in its raw form
 data DataSet = DataSet
     { dsName        :: Text
@@ -42,11 +45,15 @@ data DataSet = DataSet
 -- TODO: better name, please
 -- represents the input to a fit procedure: a data set and the
 -- names of the features, the name of the response etc.
-
+-- at this stage, the inputs are verified
 data ModelInput = ModelInput
-    { miName     :: !DataSet
-    , miFeatures :: ![Text]
-    , miResponse :: Text }
+    { miDataSet  :: !DataSet
+    , miFeatures :: ![Column Double]
+    , miResponse :: Column Double }
+
+data Column a = Column
+    { colName :: Text
+    , colData :: Vector a }
 
 readCsvWithHeader :: FilePath -> IO DataSet
 readCsvWithHeader f =
