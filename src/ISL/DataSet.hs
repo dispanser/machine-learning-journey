@@ -20,6 +20,7 @@ ideas:
 
 module ISL.DataSet where
 
+import qualified Data.Map.Strict as M
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
 import           Data.Text (Text)
@@ -37,17 +38,17 @@ class ModelFit a where
 
 -- represents the input data, i.e. the housing dataset in its raw form
 data DataSet = DataSet
-    { dsName        :: Text
-    , dsColumnNames :: Vector Text
-    , dsColumnData  :: [Vector Double]
-    } deriving (Show)
+    { dsName          :: Text
+    , dsColumnIndices :: M.Map Text Int
+    , dsColumnData    :: [Vector Double]
+    } deriving        (Show)
 
 -- TODO: better name, please
 -- represents the input to a fit procedure: a data set and the
 -- names of the features, the name of the response etc.
 -- at this stage, the inputs are verified
 data ModelInput = ModelInput
-    { miDataSet  :: !DataSet
+    { miName     :: !Text
     , miFeatures :: ![Column Double]
     , miResponse :: Column Double }
 
@@ -59,15 +60,15 @@ readCsvWithHeader :: FilePath -> IO DataSet
 readCsvWithHeader f =
     parseCSVFromFile f >>= \case
         Right csv ->
-            let dsColumnNames = V.fromList $ T.pack <$> head csv
-                dsColumnData  = createColumns $ tail csv
-                dsName        = T.pack f
+            let dsColumnIndices = M.fromList $ zip (T.pack <$> head csv) [0..]
+                dsColumnData    = createColumns $ tail csv
+                dsName          = T.pack f
             in return $ DataSet { .. }
         Left  err -> error $ show err
 
 extractFeatureVector :: Text -> DataSet -> Maybe (Vector Double)
 extractFeatureVector colName DataSet { .. } =
-    (dsColumnData !!) <$> V.elemIndex colName dsColumnNames
+    (dsColumnData !!) <$> M.lookup colName dsColumnIndices
 
 extractFeatureVectors :: [Text] -> DataSet -> Maybe [Vector Double]
 extractFeatureVectors colNames ds = traverse (flip extractFeatureVector ds) colNames
@@ -75,8 +76,8 @@ extractFeatureVectors colNames ds = traverse (flip extractFeatureVector ds) colN
 extractModelInput :: [Text] -> DataSet -> Maybe DataSet
 extractModelInput colNames ds@DataSet { .. }  = do
     cn <- extractFeatureVectors colNames ds
-    return ds { dsColumnNames = V.fromList colNames
-              , dsColumnData  = cn }
+    return ds { dsColumnIndices = M.fromList $ zip colNames [0..]
+              , dsColumnData    = cn }
 
 -- TODO: use mutable, pre-allocated vectors for performance
 createColumns :: [Record] -> [Vector Double]

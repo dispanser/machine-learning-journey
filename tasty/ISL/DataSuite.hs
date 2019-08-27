@@ -6,6 +6,8 @@ module ISL.DataSuite where
 import           ISL.DataSet
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
+import           Data.List (sort)
+import qualified Data.Map.Strict as M
 import qualified Data.Vector as V
 
 spec_CsvDataSet :: Spec
@@ -13,7 +15,7 @@ spec_CsvDataSet =
     describe "reading advertising dataset from csv" $ do
         DataSet { .. } <- runIO $ readCsvWithHeader "data/Advertising.csv"
         it "parses column names" $
-            dsColumnNames `shouldBe` V.fromList ["", "TV", "radio", "newspaper", "sales"]
+            M.keys dsColumnIndices `shouldBe` sort ["", "TV", "radio", "newspaper", "sales"]
         it "produces correct number of colums" $
             length dsColumnData `shouldBe` 5
         it "produces correct number of rows" $
