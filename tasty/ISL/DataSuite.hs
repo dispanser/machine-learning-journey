@@ -3,7 +3,7 @@
 
 module ISL.DataSuite where
 
-import           ISL.Data
+import           ISL.DataSet
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 import qualified Data.Vector as V

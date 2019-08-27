@@ -18,7 +18,7 @@ ideas:
 
 -}
 
-module ISL.Data where
+module ISL.DataSet where
 
 import           Data.Vector (Vector)
 import qualified Data.Vector as V

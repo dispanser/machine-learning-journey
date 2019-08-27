@@ -2,7 +2,7 @@
 
 module ISL.LinearRegression where
 
-import           ISL.Data
+import           ISL.DataSet
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Data.Vector.Storable as V

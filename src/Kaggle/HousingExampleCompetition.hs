@@ -6,8 +6,8 @@ module Kaggle.HousingExampleCompetition where
 
 import           Data.Text   (Text)
 import           Data.Vector.Storable (convert)
-import           ISL.Data    (DataSet(..))
-import qualified ISL.Data    as DS
+import           ISL.DataSet    (DataSet(..))
+import qualified ISL.DataSet    as DS
 import qualified ISL.LinearRegression as OLS
 
 runExample :: IO ()
