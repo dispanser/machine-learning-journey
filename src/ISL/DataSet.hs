@@ -54,7 +54,7 @@ data ModelInput = ModelInput
 
 data Column a = Column
     { colName :: Text
-    , colData :: Vector a }
+    , colData :: Vector a } deriving (Show, Eq, Ord)
 
 readCsvWithHeader :: FilePath -> IO DataSet
 readCsvWithHeader f =
@@ -66,18 +66,22 @@ readCsvWithHeader f =
             in return $ DataSet { .. }
         Left  err -> error $ show err
 
-extractFeatureVector :: Text -> DataSet -> Maybe (Vector Double)
+extractFeatureVector :: Text -> DataSet -> Maybe (Column Double)
 extractFeatureVector colName DataSet { .. } =
-    (dsColumnData !!) <$> M.lookup colName dsColumnIndices
+    Column colName . (dsColumnData !!) <$> M.lookup colName dsColumnIndices
 
-extractFeatureVectors :: [Text] -> DataSet -> Maybe [Vector Double]
+
+extractFeatureVectors :: [Text] -> DataSet -> Maybe [Column Double]
 extractFeatureVectors colNames ds = traverse (flip extractFeatureVector ds) colNames
 
-extractModelInput :: [Text] -> DataSet -> Maybe DataSet
-extractModelInput colNames ds@DataSet { .. }  = do
-    cn <- extractFeatureVectors colNames ds
-    return ds { dsColumnIndices = M.fromList $ zip colNames [0..]
-              , dsColumnData    = cn }
+extractModelInput :: Text -> [Text] -> DataSet -> Maybe ModelInput
+extractModelInput responseName featureNames ds@DataSet { .. }  = do
+    featureCols <- extractFeatureVectors featureNames ds
+    responseCol <- extractFeatureVector  responseName ds
+    return ModelInput
+        { miName     = dsName
+        , miFeatures = featureCols
+        , miResponse = responseCol }
 
 -- TODO: use mutable, pre-allocated vectors for performance
 createColumns :: [Record] -> [Vector Double]

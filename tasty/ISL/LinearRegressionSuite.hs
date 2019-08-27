@@ -1,8 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module ISL.LinearRegressionSuite where
 
-import           ISL.Data.Advertising (Advertising(..), readAdvertisingData)
+import           ISL.DataSet (readCsvWithHeader, extractModelInput)
 import           Control.Monad (zipWithM_)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
@@ -13,9 +14,10 @@ import           Data.Vector.Storable (Vector)
 spec_ISLRLinearRegression :: Spec
 spec_ISLRLinearRegression = parallel $
     describe "Adertising dataset, ISLR chapter 3:" $ do
-        Advertising { .. } <- runIO readAdvertisingData
+        advertisingDataSet <- runIO $ readCsvWithHeader "data/Advertising.csv"
         describe "simple linear regression for 'sales ~ TV'" $ do
-            let lr@LinearRegression {..} = linearRegression [tvCol] salesCol
+            let Just modelInput = extractModelInput "sales" ["TV"] advertisingDataSet
+                lr@LinearRegression {..} = linearRegression modelInput
             it "computes coefficients" $
                 checkVector lrCoefficients   [7.0325, 0.0475]
 
@@ -37,7 +39,8 @@ spec_ISLRLinearRegression = parallel $
                 checkVector (V.map pValueF $ tStatistics lr) [0.0, 0.0]
 
         describe "multivariate linear regression  for 'sales ~ TV + Radio + Newsaper'" $ do
-            let lr@LinearRegression {..} = linearRegression [tvCol, radioCol, newspCol] salesCol
+            let Just modelInput = extractModelInput "sales" ["TV", "radio", "newspaper" ] advertisingDataSet
+                lr@LinearRegression {..} = linearRegression modelInput
             it "computes coeffiicents" $ do
                 checkVector lrCoefficients [ 2.939, 0.046, 0.189, -0.001 ]
 
@@ -52,15 +55,6 @@ spec_ISLRLinearRegression = parallel $
 
             it "computes R^2" $
                 lrR2 `shouldRoughlyEqual` 0.897
-
-spec_SomeSimpleTest :: Spec
-spec_SomeSimpleTest =
-    describe "simple regression with n = 3 and p = 1" $ do
-        it "compute the same values as R" $ do
-            let ols = linearRegression [V.fromList [1, 2, 3]] $ V.fromList [1, 2, 2]
-            let [beta0, beta1] = V.toList $ lrCoefficients ols
-            beta0 `shouldRoughlyEqual` 0.6666
-            beta1 `shouldRoughlyEqual` 0.5
 
 shouldRoughlyEqual :: (Show a, Num a, Ord a, Fractional a) => a -> a -> IO ()
 shouldRoughlyEqual actual expected = actual `shouldSatisfy` roughlyEqual expected

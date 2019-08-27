@@ -13,28 +13,38 @@ dependencies:
   - base >= 4.8.0 && <5
   - vector
   - text
+  - containers
+  - unordered-containers
+  - csv
 
 library:
   source-dirs: src
   dependencies:
     - random
-    - containers
-    - unordered-containers
     - hashable
     - microlens
     - Chart
     - hmatrix
     - statistics
 
+executables:
+  examples:
+    source-dirs: examples
+    main: Kaggle/HousingExampleCompetition.hs
+    dependencies:
+      - isl
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      - -main-is Kaggle.HousingExampleCompetition
+
 tests:
   tasty:
     source-dirs: tasty
     main: Discover.hs
     dependencies:
-      - containers
-      - unordered-containers
       - isl
-      - csv
       - hspec
       - QuickCheck
       - tasty

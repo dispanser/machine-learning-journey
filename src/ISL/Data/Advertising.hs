@@ -13,7 +13,6 @@ data Advertising = Advertising
     , radioCol :: Vector Double
     , newspCol :: Vector Double }
 
-
 readAdvertisingData :: IO Advertising
 readAdvertisingData =
     parseCSVFromFile "data/Advertising.csv" >>= \case

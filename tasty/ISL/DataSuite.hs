@@ -29,19 +29,19 @@ spec_extractFeatures =
             extractFeatureVector "non-existing column" ds `shouldBe` Nothing
         it "selects the sales price column" $ do
             let salePrice = extractFeatureVector "SalePrice" ds
-            salePrice `shouldBe` Just (dsColumnData !! 80)
+            colData <$> salePrice `shouldBe` Just (dsColumnData !! 80)
         it "selects multiple columns" $ do
             let Just [msSubClass, yrSold, lotArea] =
                     extractFeatureVectors [ "MSSubClass", "YrSold", "LotArea" ] ds
-            msSubClass  `shouldBe` (dsColumnData !! 1)
-            yrSold      `shouldBe` (dsColumnData !! 77)
-            lotArea     `shouldBe` (dsColumnData !! 4)
+            colData msSubClass  `shouldBe` (dsColumnData !! 1)
+            colData yrSold      `shouldBe` (dsColumnData !! 77)
+            colData lotArea     `shouldBe` (dsColumnData !! 4)
 
 spec_extractDataSet :: Spec
 spec_extractDataSet =
-    describe "extracting a data set from another data set by column names" $ do
+    describe "create model from data set using column names" $ do
         dsFull <- runIO $ readCsvWithHeader "data/housing/train.csv"
         it "creates a correct dataset" $ do
-            let Just dsSub = extractModelInput [ "MSSubClass", "YrSold", "LotArea" ] dsFull
-            dsName dsSub `shouldBe` dsName dsFull
+            let Just modelInput = extractModelInput "SalePrice" [ "MSSubClass", "YrSold", "LotArea" ] dsFull
+            miName modelInput `shouldBe` dsName dsFull
 
