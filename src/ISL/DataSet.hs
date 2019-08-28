@@ -22,12 +22,12 @@ ideas:
 
 module ISL.DataSet where
 
-import           Control.Monad (forM_)
 import           Control.Monad.ST (runST, ST)
 import qualified Data.Map.Strict as M
 import           Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
+import qualified Data.Text as T
 import           Data.Text (Text)
 
 class Predictor a where
@@ -53,20 +53,35 @@ data DataSet = DataSet
 data ModelInput = ModelInput
     { miName     :: !Text
     , miFeatures :: ![Column Double]
-    , miResponse :: Column Double }
+    , miResponse :: Column Double } deriving (Show, Eq)
 
 -- a column is just a named vector
 data Column a = Column
     { colName :: Text
-    , colData :: Vector a } deriving (Show, Eq, Ord)
+    , colData :: Vector a } deriving (Eq, Ord)
+
+instance Show a => Show (Column a) where
+  show Column { .. } = "Col(" ++ T.unpack colName ++ "=" ++ show colData ++ ")"
 
 -- split the training input so that we can use one piece as training, the
 -- other part for validation.
 splitModelInput :: [Int] -> ModelInput -> (ModelInput, ModelInput)
-splitModelInput _testRows modelInput = (train, test)
- where _n = V.length . colData . miResponse $ modelInput
-       train = undefined
-       test  = undefined
+splitModelInput testRows modelInput = (train, test)
+ where (trainResponse, testResponse) = splitColumn testRows $ miResponse modelInput
+       (trainFeatures, testFeatures) = unzip $ splitColumn testRows <$> miFeatures modelInput
+       train = ModelInput
+           { miName = miName modelInput <> "_train"
+           , miFeatures = trainFeatures
+           , miResponse = trainResponse }
+       test  = ModelInput
+           { miName = miName modelInput <> "_test"
+           , miFeatures = testFeatures
+           , miResponse = testResponse }
+
+splitColumn :: [Int] -> Column Double -> (Column Double, Column Double)
+splitColumn idxs Column {..} =
+    let (leftV, rightV) = splitVector idxs colData
+    in (Column colName leftV, Column colName rightV)
 
 -- this actually prompted for a call for help on r/haskell:
 -- https://www.reddit.com/r/haskell/comments/ckba3b/monthly_hask_anything_august_2019/eybwyig/
