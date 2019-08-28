@@ -33,7 +33,7 @@ spec_ISLRLinearRegression = parallel $
             it "computes t-statistics" $
                 checkVector (tStatistics lr) [15.36, 17.667]
 
-            let pValueF = pValue (fromIntegral $ n-p-1)
+            let pValueF = pValue $ fromIntegral lrDF
 
             it "computes p-values" $
                 checkVector (V.map pValueF $ tStatistics lr) [0.0, 0.0]

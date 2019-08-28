@@ -31,7 +31,7 @@ class Predictor a where
   predict :: a -> [Vector Double] -> Vector Double
 
 class Summary a where
-  summary :: a -> String
+  summary :: a -> Text
 
 class ModelFit a where
   fit :: ModelInput -> a

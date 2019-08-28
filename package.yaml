@@ -16,6 +16,8 @@ dependencies:
   - containers
   - unordered-containers
   - csv
+  - formatting
+  - scientific
 
 library:
   source-dirs: src
