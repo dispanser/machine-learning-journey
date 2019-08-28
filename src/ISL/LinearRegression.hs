@@ -35,7 +35,8 @@ data LinearRegression = LinearRegression
 
 instance DS.Predictor LinearRegression where
   predict LinearRegression { .. } xss =
-      VS.convert $ predictLinearRegression lrCoefficients (VS.convert <$> xss)
+      Column lrResponseName $
+          VS.convert $ predictLinearRegression lrCoefficients (VS.convert . colData <$> xss)
 
 instance DS.Summary LinearRegression where
   summary = summarizeLinearRegression
@@ -43,8 +44,9 @@ instance DS.Summary LinearRegression where
 summarizeLinearRegression :: LinearRegression -> T.Text
 summarizeLinearRegression lr@LinearRegression { .. }  = T.unlines $
     [ formatFormula lrResponseName $ V.toList lrFeatureNames
-    , "Feature      | coefficient |  std error  |  t-stats | p-value"
-    , "-------------+-------------+-------------+----------+--------"] ++
+    , "Feature      | coefficient |  std error  |  t-stats |  p-value"
+    , "-------------+-------------+-------------+----------+---------"
+    ] ++
         (V.toList $ V.zipWith3 (formatCoefficientInfo $ fromIntegral lrDF) lrFeatureNames
             (V.convert lrCoefficients) (V.convert lrStandardErrors)) ++
         [ ""
@@ -61,9 +63,9 @@ formatFormula responseName featureNames =
 formatCoefficientInfo :: Double -> T.Text -> Double -> Double -> T.Text
 formatCoefficientInfo df name x err =
     let scieF         = F.left 11 ' ' %. F.scifmt Scientific.Exponent (Just 4)
-        numF          = F.left 7 ' '  %. F.fixed 4
+        numF          = F.left 8 ' '  %. F.fixed 4
         formatString = (F.left 12 ' ' %. F.stext) % " | " % scieF % " | " % scieF %
-            " | " % numF % "  | " % numF
+            " | " % numF % " | " % numF
         tStat        = x / err
         -- TODO: multiplying by two gives the same values as R, but that's not
         -- a good reason to randomly multiply by something. Investigate!

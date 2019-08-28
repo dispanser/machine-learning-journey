@@ -22,13 +22,10 @@ module ISL.DataSet where
 
 import qualified Data.Map.Strict as M
 import           Data.Vector (Vector)
-import qualified Data.Vector as V
 import           Data.Text (Text)
-import qualified Data.Text as T
-import           Text.CSV (parseCSVFromFile, Record)
 
 class Predictor a where
-  predict :: a -> [Vector Double] -> Vector Double
+  predict :: a -> [Column Double] -> Column Double
 
 class Summary a where
   summary :: a -> Text
@@ -56,16 +53,6 @@ data Column a = Column
     { colName :: Text
     , colData :: Vector a } deriving (Show, Eq, Ord)
 
-readCsvWithHeader :: FilePath -> IO DataSet
-readCsvWithHeader f =
-    parseCSVFromFile f >>= \case
-        Right csv ->
-            let dsColumnIndices = M.fromList $ zip (T.pack <$> head csv) [0..]
-                dsColumnData    = createColumns $ tail csv
-                dsName          = T.pack f
-            in return $ DataSet { .. }
-        Left  err -> error $ show err
-
 extractFeatureVector :: Text -> DataSet -> Maybe (Column Double)
 extractFeatureVector colName DataSet { .. } =
     Column colName . (dsColumnData !!) <$> M.lookup colName dsColumnIndices
@@ -83,11 +70,3 @@ extractModelInput responseName featureNames ds@DataSet { .. }  = do
         , miFeatures = featureCols
         , miResponse = responseCol }
 
--- TODO: use mutable, pre-allocated vectors for performance
-createColumns :: [Record] -> [Vector Double]
-createColumns csv =
-    let cols = length $ head csv
-    in  flip extractColumn csv <$> [0 .. cols - 1]
-
-extractColumn :: (Read a) => Int -> [Record] -> Vector a
-extractColumn c rs = V.fromList $ read .  (!! c) <$> filter (/= [""]) rs

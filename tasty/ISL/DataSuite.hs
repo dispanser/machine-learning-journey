@@ -4,6 +4,7 @@
 module ISL.DataSuite where
 
 import           ISL.DataSet
+import           ISL.DataSet.CSV (readCsvWithHeader)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 import           Data.List (sort)
