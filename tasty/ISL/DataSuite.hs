@@ -46,3 +46,20 @@ spec_extractDataSet =
             let Just modelInput = extractModelInput "SalePrice" [ "MSSubClass", "YrSold", "LotArea" ] dsFull
             miName modelInput `shouldBe` dsName dsFull
 
+spec_splitVector :: Spec
+spec_splitVector =
+    describe "splitting a vector into two" $ do
+        it "should handle empty vectors" $ do
+            let (left, right) = splitVector [] V.empty
+            left `shouldBe` V.empty
+            right `shouldBe` V.empty
+        it "should handle empty row selector" $ do
+            let inp           = V.fromList [3, 4, 5, 6]
+                (left, right) = splitVector [] inp
+            left `shouldBe` V.empty
+            right `shouldBe` inp
+        it "should handle full row selector" $ do
+            let inp           = V.fromList [3 .. 7]
+                (left, right) = splitVector [0 .. 4] inp
+            left `shouldBe` inp
+            right `shouldBe` V.empty
