@@ -19,7 +19,7 @@ class Predictor a where
   predict :: a -> [Column Double] -> Column Double
 
 class Summary a where
-  summary :: a -> Text
+  summary :: a -> [Text]
 
 class ModelFit a where
   fit :: ModelInput -> a

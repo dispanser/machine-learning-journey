@@ -41,8 +41,8 @@ instance M.Predictor LinearRegression where
 instance M.Summary LinearRegression where
   summary = summarizeLinearRegression
 
-summarizeLinearRegression :: LinearRegression -> T.Text
-summarizeLinearRegression lr@LinearRegression { .. }  = T.unlines $
+summarizeLinearRegression :: LinearRegression -> [T.Text]
+summarizeLinearRegression lr@LinearRegression { .. }  =
     [ formatFormula lrResponseName $ V.toList lrFeatureNames
     , "Feature      | coefficient |  std error  |  t-stats |  p-value"
     , "-------------+-------------+-------------+----------+---------"
