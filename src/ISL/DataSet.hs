@@ -102,7 +102,7 @@ splitVector idxs v =
             lefts  <- VM.new leftSize
             rights <- VM.new rightSize
             let --  step :: Int -> Int -> Int -> ST s () -- no longer necessary, uhm.
-                step l r []     = return ()
+                step _ _ []     = return ()
                 step l r ((p,i):ps) =
                     if p
                        then VM.write lefts  l (v ! i) >> step (l+1) r ps

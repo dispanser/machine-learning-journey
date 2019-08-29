@@ -18,10 +18,13 @@ main = do
     housingDS <- readCsvWithHeader "data/housing/train.csv"
     housingTestDS <- readCsvWithHeader "data/housing/test.csv"
     let Just baseModel = DS.extractModelInput "SalePrice" startColumnNames housingDS
-        lrFit          = OLS.linearRegression baseModel
+        lrFit          = DS.fit baseModel :: OLS.LinearRegression
     forM_ (T.lines $ DS.summary lrFit) print
     let Just testData = DS.extractFeatureVectors startColumnNames housingTestDS
         prediction    = DS.predict lrFit testData
         Just idCol    = DS.extractFeatureVector "Id" housingTestDS
+
+
     writeCsv "./submission.csv" [idCol, prediction]
+
 
