@@ -1,0 +1,32 @@
+* My Machine Learning Playground
+
+This repository tracks my educational journey into the realm of 
+machine learning, using [[https://www.haskell.org/][Haskell]] as the weapon of choice.
+
+We're going to work through some books, trying to reproduce certain aspects
+of the underlying text.
+
+** Goals
+- learn
+- explore the space of related libraries in the Haskell ecosystem
+- represent common algorithms in Haskell
+- find some abstractions to create a somewhat unified way of representing
+  different algorithms and approaches
+
+** Non-goals
+- produce anything that is usable for real data science 
+
+** WIP Introduction to Statistical Learning
+
+Freely available [[http://faculty.marshall.usc.edu/gareth-james/ISL/][online]], based on [[https://www.r-project.org/][R]]. My goal is to work through the entire book,
+reproducing the results of the learning algorithms as closely as possible.
+
+*** Status
+- [X] Chapter 3 - Linear Regression
+  - [[src/ISL/LinearRegression.hs]]
+  - based on [[https://hackage.haskell.org/package/hmatrix][hmatrix]] [[https://hackage.haskell.org/package/hmatrix-0.20.0.0/docs/Numeric-LinearAlgebra.html#v:linearSolveLS][linearSolveLS]] method
+- [ ] Chapter 4 - Classification
+- [ ] Chapter 5 - Resampling Methods
+  - [ ] Validation Set
+  - [ ] Cross Validation
+  - [ ] The Bootstrap
