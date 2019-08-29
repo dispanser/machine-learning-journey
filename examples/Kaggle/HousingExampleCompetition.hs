@@ -6,8 +6,8 @@ module Kaggle.HousingExampleCompetition where
 
 import           Control.Monad (forM_)
 import qualified Data.Text as T
-import qualified ISL.DataSet     as DS
 import           ISL.DataSet.CSV (readCsvWithHeader, writeCsv)
+import qualified ISL.Model     as M
 import qualified ISL.LinearRegression as OLS
 
 main :: IO ()
@@ -17,12 +17,12 @@ main = do
             , "BedroomAbvGr", "TotRmsAbvGrd"]
     housingDS <- readCsvWithHeader "data/housing/train.csv"
     housingTestDS <- readCsvWithHeader "data/housing/test.csv"
-    let Just baseModel = DS.extractModelInput "SalePrice" startColumnNames housingDS
-        lrFit          = DS.fit baseModel :: OLS.LinearRegression
-    forM_ (T.lines $ DS.summary lrFit) print
-    let Just testData = DS.extractFeatureVectors startColumnNames housingTestDS
-        prediction    = DS.predict lrFit testData
-        Just idCol    = DS.extractFeatureVector "Id" housingTestDS
+    let Just baseModel = M.extractModelInput "SalePrice" startColumnNames housingDS
+        lrFit          = M.fit baseModel :: OLS.LinearRegression
+    forM_ (T.lines $ M.summary lrFit) print
+    let Just testData = M.extractFeatureVectors startColumnNames housingTestDS
+        prediction    = M.predict lrFit testData
+        Just idCol    = M.extractFeatureVector "Id" housingTestDS
 
 
     writeCsv "./submission.csv" [idCol, prediction]

@@ -7,7 +7,8 @@ import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
-import           ISL.DataSet (DataSet(..), Column(..))
+import           ISL.DataSet (DataSet(..))
+import           ISL.Model (Column(..))
 import           Text.CSV (parseCSVFromFile, Record, printCSV)
 
 readCsvWithHeader :: FilePath -> IO DataSet

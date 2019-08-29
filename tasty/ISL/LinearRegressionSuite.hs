@@ -3,7 +3,7 @@
 
 module ISL.LinearRegressionSuite where
 
-import           ISL.DataSet     (extractModelInput)
+import           ISL.Model       (extractModelInput)
 import           ISL.DataSet.CSV (readCsvWithHeader)
 import           Control.Monad (zipWithM_)
 import           Test.Tasty.Hspec (Spec)

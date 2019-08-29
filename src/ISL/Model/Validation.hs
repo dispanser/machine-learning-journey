@@ -1,6 +1,6 @@
 module ISL.Model.Validation where
 
-import qualified ISL.DataSet as DS
+import qualified ISL.Model as M
 import qualified System.Random as Rand
 
 -- create a list of booleans that can be used for a validation set split
@@ -16,5 +16,5 @@ kFoldSplit seed n k =
     let rg = Rand.mkStdGen seed
     in take n $ Rand.randomRs (0, k-1) rg
 
-runValidation :: (DS.Predictor a, DS.ModelFit a) => Int -> DS.ModelInput -> a
-runValidation seed mi = undefined
+runValidation :: (M.Predictor a, M.ModelFit a) => Int -> M.ModelInput -> a
+runValidation _seed _mi = undefined

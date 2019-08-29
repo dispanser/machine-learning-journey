@@ -3,8 +3,8 @@
 
 module ISL.LinearRegression where
 
-import qualified ISL.DataSet as DS
-import           ISL.DataSet (ModelInput(..), Column(..))
+import qualified ISL.Model as M
+import           ISL.Model (ModelInput(..), Column(..))
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Formatting as F
@@ -33,12 +33,12 @@ data LinearRegression = LinearRegression
     , p                :: Int
     } deriving (Show, Eq, Ord)
 
-instance DS.Predictor LinearRegression where
+instance M.Predictor LinearRegression where
   predict LinearRegression { .. } xss =
       Column lrResponseName $
           VS.convert $ predictLinearRegression lrCoefficients (VS.convert . colData <$> xss)
 
-instance DS.Summary LinearRegression where
+instance M.Summary LinearRegression where
   summary = summarizeLinearRegression
 
 summarizeLinearRegression :: LinearRegression -> T.Text
@@ -74,7 +74,7 @@ formatCoefficientInfo df name x err =
         (Scientific.fromFloatDigits x)
         (Scientific.fromFloatDigits err) tStat pV
 
-instance DS.ModelFit LinearRegression where
+instance M.ModelFit LinearRegression where
   fit = linearRegression
 
 linearRegression :: ModelInput -> LinearRegression
@@ -116,7 +116,7 @@ tStatistics :: LinearRegression -> Vector Double
 tStatistics LinearRegression { .. } = abs $ lrCoefficients / lrStandardErrors
 
 fStatistics :: LinearRegression -> Double
-fStatistics LinearRegression { .. } = (lrTss - lrRss) / fromIntegral p / lrRss * fromIntegral (n - p - 1)
+fStatistics LinearRegression { .. } = (lrTss - lrRss) / fromIntegral p / lrRss * fromIntegral lrDF
 
 pValue :: Double -> Double -> Double
 pValue df v =
