@@ -26,7 +26,8 @@ reproducing the results of the learning algorithms as closely as possible.
   - [[src/ISL/LinearRegression.hs]]
   - based on [[https://hackage.haskell.org/package/hmatrix][hmatrix]] [[https://hackage.haskell.org/package/hmatrix-0.20.0.0/docs/Numeric-LinearAlgebra.html#v:linearSolveLS][linearSolveLS]] method
 - [ ] Chapter 4 - Classification
-- [ ] Chapter 5 - Resampling Methods
-  - [ ] Validation Set
-  - [ ] Cross Validation
+- [-] Chapter 5 - Resampling Methods
+  - [X] Validation Set
+  - [X] Cross Validation
   - [ ] The Bootstrap
+    
