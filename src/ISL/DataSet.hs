@@ -25,12 +25,11 @@ class Summary a where
 data DataSet = DataSet
     { dsName          :: Text
     , dsColumnIndices :: M.Map Text (Vector Double)
-    , dsColumnData    :: [Vector Double]
     } deriving        (Show)
 
 instance Summary DataSet where
   summary ds = [ "DataSet:    " <> dsName ds
-               -- , "dimensions: " <> (T.pack . show . V.length . fromMaybe V.empty . head . dsColumnData $ ds)
+               , "dimensions: " <> show (numRows ds) <> "x" <> show (numCols ds)
                , "columns:    " <> (T.intercalate ", " $ names ds)]
 
 names :: DataSet -> [Text]
@@ -40,7 +39,9 @@ dimenions :: DataSet -> (Int, Int)
 dimenions ds = (numRows ds, numCols ds)
 
 numRows :: DataSet -> Int
-numRows ds = fromMaybe 0 $ V.length . fst <$> (uncons $ dsColumnData ds)
+numRows ds =
+
+    fromMaybe 0 $ V.length . fst <$> (uncons $ snd <$> (M.toList $ dsColumnIndices ds))
 
 numCols :: DataSet -> Int
 numCols ds = M.size $ dsColumnIndices ds

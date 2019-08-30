@@ -3,7 +3,6 @@
 
 module ISL.DataSuite where
 
-import qualified Relude.Unsafe as RU
 import           ISL.DataSet
 import           ISL.Model
 import           ISL.DataSet.CSV (readCsvWithHeader)
@@ -32,13 +31,13 @@ spec_extractFeatures =
             extractFeatureVector "non-existing column" ds `shouldBe` Nothing
         it "selects the sales price column" $ do
             let salePrice = extractFeatureVector "SalePrice" ds
-            colData <$> salePrice `shouldBe` Just (dsColumnData RU.!! 80)
+            colData <$> salePrice `shouldBe` M.lookup "SalePrice" dsColumnIndices
         it "selects multiple columns" $ do
             let Just [msSubClass, yrSold, lotArea] =
                     extractFeatureVectors [ "MSSubClass", "YrSold", "LotArea" ] ds
-            colData msSubClass  `shouldBe` (dsColumnData RU.!! 1)
-            colData yrSold      `shouldBe` (dsColumnData RU.!! 77)
-            colData lotArea     `shouldBe` (dsColumnData RU.!! 4)
+            Just (colData msSubClass)  `shouldBe` (M.lookup "MSSubClass" dsColumnIndices)
+            Just (colData yrSold)      `shouldBe` (M.lookup "YrSold" dsColumnIndices)
+            Just (colData lotArea)     `shouldBe` (M.lookup "LotArea" dsColumnIndices)
 
 spec_extractDataSet :: Spec
 spec_extractDataSet =
