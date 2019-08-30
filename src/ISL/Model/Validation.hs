@@ -9,7 +9,6 @@ module ISL.Model.Validation
 import qualified ISL.Model as M
 import qualified System.Random as Rand
 import qualified Data.Vector as V
-import qualified Debug.Trace as D
 
 -- create a list of booleans that can be used for a validation set split
 validationSetSplit :: Int -> Int -> [Bool]
@@ -44,7 +43,7 @@ runWithTestSet :: M.Predictor a => (M.ModelInput -> a) -> M.ModelInput -> M.Mode
 runWithTestSet fit trainData testData =
     let modelFit              = fit trainData
         prediction            = M.colData $ M.predict modelFit $ M.miFeatures testData
-        testError             = D.traceShow (V.length prediction) $ V.sum $ V.map (^(2::Int)) $ V.zipWith (-)
+        testError             = V.sum $ V.map (^(2::Int)) $ V.zipWith (-)
             prediction (M.colData . M.miResponse $ testData)
     in testError / fromIntegral (V.length prediction)
 

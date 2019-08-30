@@ -12,7 +12,6 @@ import qualified Data.Map.Strict as M
 import           Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
-import qualified Data.Text as T
 import           Data.Text (Text)
 
 class Predictor a where
@@ -33,10 +32,7 @@ data ModelInput = ModelInput
 -- a column is just a named vector
 data Column a = Column
     { colName :: Text
-    , colData :: Vector a } deriving (Eq, Ord)
-
-instance Show a => Show (Column a) where
-  show Column { .. } = "Col(" ++ T.unpack colName ++ "=" ++ show colData ++ ")"
+    , colData :: Vector a } deriving (Show, Eq, Ord)
 
 -- split the training input so that we can use one piece as training, the
 -- other part for validation.
@@ -70,25 +66,24 @@ splitVector idxs v =
     runST go
       where
         n         = V.length v
-        leftSize  = length (filter id $ take n idxs)
+        leftSize  = length (filter identity $ take n idxs)
         rightSize = n - leftSize
         go :: forall s . ST s (Vector Double, Vector Double)
         go = do
-            lefts  <- VM.new leftSize
-            rights <- VM.new rightSize
+            lefts'  <- VM.new leftSize
+            rights' <- VM.new rightSize
             let --  step :: Int -> Int -> Int -> ST s () -- no longer necessary, uhm.
                 step _ _ []     = return ()
                 step l r ((p,i):ps) =
                     if p
-                       then VM.write lefts  l (v ! i) >> step (l+1) r ps
-                       else VM.write rights r (v ! i) >> step l (r+1) ps
+                       then VM.write lefts'  l (v ! i) >> step (l+1) r ps
+                       else VM.write rights' r (v ! i) >> step l (r+1) ps
             step 0 0 $ zip idxs [0 .. n-1]
-            (,) <$> V.freeze lefts <*> V.freeze rights
+            (,) <$> V.freeze lefts' <*> V.freeze rights'
 
 extractFeatureVector :: Text -> DataSet -> Maybe (Column Double)
 extractFeatureVector colName DataSet { .. } =
-    Column colName . (dsColumnData !!) <$> M.lookup colName dsColumnIndices
-
+    Column colName <$> M.lookup colName dsColumnIndices
 
 extractFeatureVectors :: [Text] -> DataSet -> Maybe [Column Double]
 extractFeatureVectors colNames ds = traverse (flip extractFeatureVector ds) colNames

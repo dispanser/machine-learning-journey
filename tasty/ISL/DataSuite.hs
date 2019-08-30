@@ -3,6 +3,7 @@
 
 module ISL.DataSuite where
 
+import qualified Relude.Unsafe as RU
 import           ISL.DataSet
 import           ISL.Model
 import           ISL.DataSet.CSV (readCsvWithHeader)
@@ -15,13 +16,13 @@ import qualified Data.Vector as V
 spec_CsvDataSet :: Spec
 spec_CsvDataSet =
     describe "reading advertising dataset from csv" $ do
-        DataSet { .. } <- runIO $ readCsvWithHeader "data/Advertising.csv"
+        ds@DataSet { .. } <- runIO $ readCsvWithHeader "data/Advertising.csv"
         it "parses column names" $
             M.keys dsColumnIndices `shouldBe` sort ["", "TV", "radio", "newspaper", "sales"]
         it "produces correct number of colums" $
-            length dsColumnData `shouldBe` 5
+            numCols ds `shouldBe` 5
         it "produces correct number of rows" $
-            V.length (head dsColumnData) `shouldBe` 200
+            numRows ds `shouldBe` 200
 
 spec_extractFeatures :: Spec
 spec_extractFeatures =
@@ -31,13 +32,13 @@ spec_extractFeatures =
             extractFeatureVector "non-existing column" ds `shouldBe` Nothing
         it "selects the sales price column" $ do
             let salePrice = extractFeatureVector "SalePrice" ds
-            colData <$> salePrice `shouldBe` Just (dsColumnData !! 80)
+            colData <$> salePrice `shouldBe` Just (dsColumnData RU.!! 80)
         it "selects multiple columns" $ do
             let Just [msSubClass, yrSold, lotArea] =
                     extractFeatureVectors [ "MSSubClass", "YrSold", "LotArea" ] ds
-            colData msSubClass  `shouldBe` (dsColumnData !! 1)
-            colData yrSold      `shouldBe` (dsColumnData !! 77)
-            colData lotArea     `shouldBe` (dsColumnData !! 4)
+            colData msSubClass  `shouldBe` (dsColumnData RU.!! 1)
+            colData yrSold      `shouldBe` (dsColumnData RU.!! 77)
+            colData lotArea     `shouldBe` (dsColumnData RU.!! 4)
 
 spec_extractDataSet :: Spec
 spec_extractDataSet =

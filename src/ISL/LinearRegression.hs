@@ -17,8 +17,7 @@ import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
 import           Statistics.Distribution.StudentT (studentT)
 import           Statistics.Distribution (complCumulative)
-
-import Debug.Trace (trace)
+import qualified Debug.Trace as D
 
 data LinearRegression = LinearRegression
     { lrFeatureNames   :: V.Vector T.Text
@@ -58,7 +57,7 @@ summarizeLinearRegression lr@LinearRegression { .. }  =
 formatFormula :: T.Text -> [T.Text] -> T.Text
 formatFormula responseName featureNames =
     F.sformat ("Linear Regression: " % F.stext % " ~ ") responseName
-      <> head featureNames <> mconcat (F.sformat (" + " % F.stext) <$> tail featureNames)
+      <> T.intercalate " + " featureNames
 
 -- format a coefficient into a nicely laid out string
 formatCoefficientInfo :: Double -> T.Text -> Double -> Double -> T.Text
@@ -86,7 +85,7 @@ linearRegression ModelInput { .. } =
         xX               = prepareMatrix n xs
         p                = M.cols xX - 1
         lrDF             = n - p - 1
-        lrCoefficients   = head $ M.toColumns $ M.linearSolveLS xX (M.fromColumns [y])
+        lrCoefficients   = fromMaybe VS.empty $ fst <$> (uncons $ M.toColumns $ M.linearSolveLS xX (M.fromColumns [y]))
         residuals        = y - predictLinearRegression lrCoefficients xs
         lrRss            = residuals <.> residuals
         yMean            = mean y
@@ -103,7 +102,7 @@ linearRegression ModelInput { .. } =
 
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =
-    let n  = VS.length $ head xs
+    let n  = fromMaybe 0 $ VS.length . fst <$> uncons xs
         xX = prepareMatrix n xs
     in xX #> bs
 
@@ -132,4 +131,4 @@ prepareMatrix n xs = M.fromColumns $ VS.replicate n 1 : xs
 debugShow :: Show a => String -> a -> a
 debugShow prefix v =
     let msg = prefix ++ " " ++ show v
-    in trace msg v
+    in D.trace msg v

@@ -10,7 +10,8 @@ license: MIT
 
 ghc-options: -Wall
 dependencies:
-  - base >= 4.8.0 && <5
+  - base-noprelude >= 4.8.0 && <5
+  - relude
   - vector
   - text
   - containers

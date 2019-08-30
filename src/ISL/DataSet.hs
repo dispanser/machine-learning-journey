@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 {-
 Very simple prototype of how to represent data
@@ -23,16 +24,23 @@ class Summary a where
 -- represents the input data, i.e. the housing dataset in its raw form
 data DataSet = DataSet
     { dsName          :: Text
-    , dsColumnIndices :: M.Map Text Int
+    , dsColumnIndices :: M.Map Text (Vector Double)
     , dsColumnData    :: [Vector Double]
     } deriving        (Show)
 
 instance Summary DataSet where
   summary ds = [ "DataSet:    " <> dsName ds
-               , "dimensions: " <> (T.pack . show . V.length . head . dsColumnData $ ds)
+               -- , "dimensions: " <> (T.pack . show . V.length . fromMaybe V.empty . head . dsColumnData $ ds)
                , "columns:    " <> (T.intercalate ", " $ names ds)]
 
 names :: DataSet -> [Text]
 names = M.keys . dsColumnIndices
 
+dimenions :: DataSet -> (Int, Int)
+dimenions ds = (numRows ds, numCols ds)
 
+numRows :: DataSet -> Int
+numRows ds = fromMaybe 0 $ V.length . fst <$> (uncons $ dsColumnData ds)
+
+numCols :: DataSet -> Int
+numCols ds = M.size $ dsColumnIndices ds
