@@ -83,7 +83,8 @@ splitVector idxs v =
 
 extractFeatureVector :: Text -> DataSet -> Maybe (Column Double)
 extractFeatureVector colName DataSet { .. } =
-    Column colName <$> M.lookup colName dsColumnIndices
+    let fallback = sqrt $ -1
+    in Column colName <$> V.map (either (const fallback) identity . readEither) <$> M.lookup colName dsColumnIndices
 
 extractFeatureVectors :: [Text] -> DataSet -> Maybe [Column Double]
 extractFeatureVectors colNames ds = traverse (flip extractFeatureVector ds) colNames

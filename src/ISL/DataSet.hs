@@ -24,7 +24,7 @@ class Summary a where
 -- represents the input data, i.e. the housing dataset in its raw form
 data DataSet = DataSet
     { dsName          :: Text
-    , dsColumnIndices :: M.Map Text (Vector Double)
+    , dsColumnIndices :: M.Map Text (Vector Text)
     } deriving        (Show)
 
 instance Summary DataSet where
@@ -40,7 +40,6 @@ dimenions ds = (numRows ds, numCols ds)
 
 numRows :: DataSet -> Int
 numRows ds =
-
     fromMaybe 0 $ V.length . fst <$> (uncons $ snd <$> (M.toList $ dsColumnIndices ds))
 
 numCols :: DataSet -> Int

@@ -25,13 +25,13 @@ readCsvWithHeader f =
         Left  err -> error $ show err
 
 -- TODO: use mutable, pre-allocated vectors for performance
-createColumns :: Int -> [Record] -> [Vector Double]
+createColumns :: Int -> [Record] -> [Vector T.Text]
 createColumns cols csv = flip extractColumn csv <$> [0 .. cols - 1]
 
-extractColumn :: Int -> [Record] -> Vector Double
+extractColumn :: Int -> [Record] -> Vector T.Text
 extractColumn c rs =
-    let wtf = readEither . (RU.!! c) <$> filter (/= [""]) rs
-    in V.fromList $ either (const $ sqrt (-1)) identity <$> wtf
+    let wtf = T.pack . (RU.!! c) <$> filter (/= [""]) rs
+    in V.fromList wtf
 
 writeCsv :: FilePath -> [Column Double] -> IO ()
 writeCsv fp columns = writeFile fp $ printCSV (header:body)
