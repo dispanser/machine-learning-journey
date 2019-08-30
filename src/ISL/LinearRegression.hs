@@ -3,6 +3,7 @@
 
 module ISL.LinearRegression where
 
+import           ISL.DataSet (Summary(..))
 import qualified ISL.Model as M
 import           ISL.Model (ModelInput(..), Column(..))
 import qualified Numeric.LinearAlgebra as M
@@ -38,7 +39,7 @@ instance M.Predictor LinearRegression where
       Column lrResponseName $
           VS.convert $ predictLinearRegression lrCoefficients (VS.convert . colData <$> xss)
 
-instance M.Summary LinearRegression where
+instance Summary LinearRegression where
   summary = summarizeLinearRegression
 
 summarizeLinearRegression :: LinearRegression -> [T.Text]
