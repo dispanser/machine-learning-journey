@@ -15,7 +15,7 @@ import qualified Data.Vector.Mutable as VM
 import           Data.Text (Text)
 
 class Predictor a where
-  predict :: a -> [Column Double] -> Column Double
+  predict :: a -> [Feature Double] -> Feature Double
 
 class ModelFit a where
   fit :: ModelInput -> a
@@ -26,13 +26,21 @@ class ModelFit a where
 -- at this stage, the inputs are verified
 data ModelInput = ModelInput
     { miName     :: !Text
-    , miFeatures :: ![Column Double]
-    , miResponse :: Column Double } deriving (Show, Eq)
+    , miFeatures :: ![Feature Double]
+    , miResponse :: Feature Double } deriving (Show, Eq)
 
--- a column is just a named vector
-data Column a = Column
-    { colName :: Text
-    , colData :: Vector a } deriving (Show, Eq, Ord)
+-- a feature is just a named vector
+data Feature a =
+    Column
+        { colName :: Text
+        , colData :: Vector a }
+        |
+     Categorical
+         { featureName :: Text -- name of the feature, e.g. color
+         , baseFeature :: Text -- base line feature name, e.g. "blue"
+         , features    :: [Feature Bool] }
+     deriving (Show, Eq, Ord)
+
 
 -- split the training input so that we can use one piece as training, the
 -- other part for validation.
@@ -49,10 +57,13 @@ splitModelInput testRows modelInput = (train, test)
            , miFeatures = testFeatures
            , miResponse = testResponse }
 
-splitColumn :: [Bool] -> Column Double -> (Column Double, Column Double)
-splitColumn idxs Column {..} =
+splitColumn :: [Bool] -> Feature a -> (Feature a, Feature a)
+splitColumn idxs Column { .. } =
     let (leftV, rightV) = splitVector idxs colData
     in (Column colName leftV, Column colName rightV)
+splitColumn idxs Categorical { .. } =
+    let (leftF, rightF) = unzip $ splitColumn idxs <$> features
+    in (Categorical featureName baseFeature leftF, Categorical featureName baseFeature rightF)
 
 -- this actually prompted for a call for help on r/haskell:
 -- https://www.reddit.com/r/haskell/comments/ckba3b/monthly_hask_anything_august_2019/eybwyig/
@@ -61,14 +72,14 @@ splitColumn idxs Column {..} =
 -- ScopedTypeVariables, have an explicit type signature for the runST (go), bind some s using
 -- forall, and then re-using that s in the type signature of the step function.
 -- after all these changes, it became possible drop the type signature for step:
-splitVector :: [Bool] -> Vector Double -> (Vector Double, Vector Double)
+splitVector :: forall a . [Bool] -> Vector a -> (Vector a, Vector a)
 splitVector idxs v =
     runST go
       where
         n         = V.length v
         leftSize  = length (filter identity $ take n idxs)
         rightSize = n - leftSize
-        go :: forall s . ST s (Vector Double, Vector Double)
+        go :: forall s . ST s (Vector a, Vector a)
         go = do
             lefts'  <- VM.new leftSize
             rights' <- VM.new rightSize
@@ -81,12 +92,12 @@ splitVector idxs v =
             step 0 0 $ zip idxs [0 .. n-1]
             (,) <$> V.freeze lefts' <*> V.freeze rights'
 
-extractFeatureVector :: Text -> DataSet -> Maybe (Column Double)
+extractFeatureVector :: Text -> DataSet -> Maybe (Feature Double)
 extractFeatureVector colName DataSet { .. } =
     let fallback = sqrt $ -1
     in Column colName <$> V.map (either (const fallback) identity . readEither) <$> M.lookup colName dsColumnIndices
 
-extractFeatureVectors :: [Text] -> DataSet -> Maybe [Column Double]
+extractFeatureVectors :: [Text] -> DataSet -> Maybe [Feature Double]
 extractFeatureVectors colNames ds = traverse (flip extractFeatureVector ds) colNames
 
 extractModelInput :: Text -> [Text] -> DataSet -> Maybe ModelInput

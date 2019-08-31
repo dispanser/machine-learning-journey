@@ -5,7 +5,7 @@ module ISL.LinearRegression where
 
 import           ISL.DataSet (Summary(..))
 import qualified ISL.Model as M
-import           ISL.Model (ModelInput(..), Column(..))
+import           ISL.Model (ModelInput(..), Feature(..))
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Formatting as F

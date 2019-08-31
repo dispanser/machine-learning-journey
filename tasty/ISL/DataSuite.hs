@@ -31,13 +31,20 @@ spec_extractFeatures =
             extractFeatureVector "non-existing column" ds `shouldBe` Nothing
         it "selects the sales price column" $ do
             let salePrice = extractFeatureVector "SalePrice" ds
-            V.map (show . round) <$> colData <$> salePrice `shouldBe` M.lookup "SalePrice" dsColumnIndices
+            V.map showInt <$> colData <$> salePrice `shouldBe` M.lookup "SalePrice" dsColumnIndices
         it "selects multiple columns" $ do
             let Just [msSubClass, yrSold, lotArea] =
                     extractFeatureVectors [ "MSSubClass", "YrSold", "LotArea" ] ds
-            Just (V.map (show . round) $ colData msSubClass)  `shouldBe` (M.lookup "MSSubClass" dsColumnIndices)
-            Just (V.map (show . round) $ colData yrSold)      `shouldBe` (M.lookup "YrSold" dsColumnIndices)
-            Just (V.map (show . round) $ colData lotArea)     `shouldBe` (M.lookup "LotArea" dsColumnIndices)
+            Just (V.map showInt $ colData msSubClass)  `shouldBe` (M.lookup "MSSubClass" dsColumnIndices)
+            Just (V.map showInt $ colData yrSold)      `shouldBe` (M.lookup "YrSold" dsColumnIndices)
+            Just (V.map showInt $ colData lotArea)     `shouldBe` (M.lookup "LotArea" dsColumnIndices)
+        it "handles categorical column MSZoning" $ do
+            let Just msZoning = extractFeatureVector "MSZoning" ds
+            13 `shouldBe` 14
+        where
+          showInt :: Double -> Text
+          showInt = show . (round :: Double -> Int)
+
 
 spec_extractDataSet :: Spec
 spec_extractDataSet =
@@ -51,16 +58,16 @@ spec_splitVector :: Spec
 spec_splitVector =
     describe "splitting a vector into two" $ do
         it "should handle empty vectors" $ do
-            let (left, right) = splitVector (repeat False) V.empty
+            let (left, right) = splitVector (repeat False) (V.empty :: V.Vector Bool)
             left `shouldBe` V.empty
             right `shouldBe` V.empty
         it "should handle empty row selector" $ do
-            let inp           = V.fromList [3, 4, 5, 6]
+            let inp           = V.fromList [3, 4, 5, 6 :: Int]
                 (left, right) = splitVector (repeat False) inp
             left `shouldBe` V.empty
             right `shouldBe` inp
         it "should handle full row selector" $ do
-            let inp           = V.fromList [3 .. 7]
+            let inp           = V.fromList [3 .. 7 :: Int]
                 (left, right) = splitVector (repeat True) inp
             left `shouldBe` inp
             right `shouldBe` V.empty

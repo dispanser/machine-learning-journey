@@ -9,7 +9,7 @@ import qualified Data.Text as T
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
 import           ISL.DataSet (DataSet(..))
-import           ISL.Model (Column(..))
+import           ISL.Model (Feature(..))
 import           Text.CSV (parseCSVFromFile, Record, printCSV)
 
 readCsvWithHeader :: FilePath -> IO DataSet
@@ -33,7 +33,7 @@ extractColumn c rs =
     let wtf = T.pack . (RU.!! c) <$> filter (/= [""]) rs
     in V.fromList wtf
 
-writeCsv :: FilePath -> [Column Double] -> IO ()
+writeCsv :: FilePath -> [Feature Double] -> IO ()
 writeCsv fp columns = writeFile fp $ printCSV (header:body)
  where header      = T.unpack . colName <$> columns
        rows        = V.length $ colData $ RU.head columns
