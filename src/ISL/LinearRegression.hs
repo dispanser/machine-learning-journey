@@ -5,7 +5,7 @@ module ISL.LinearRegression where
 
 import           ISL.DataSet (Summary(..))
 import qualified ISL.Model as M
-import           ISL.Model (ModelInput(..), Feature(..))
+import           ISL.Model (ModelInput(..), Feature(..), Column(..))
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Formatting as F
@@ -35,8 +35,10 @@ data LinearRegression = LinearRegression
 
 instance M.Predictor LinearRegression where
   predict LinearRegression { .. } xss =
-      Column lrResponseName $
-          VS.convert $ predictLinearRegression lrCoefficients (VS.convert . colData <$> xss)
+      let input = VS.convert <$> concatMap M.featureVectors xss
+          olsR  = predictLinearRegression lrCoefficients input
+      in SingleCol . Column lrResponseName . VS.convert $ olsR
+
 
 instance Summary LinearRegression where
   summary = summarizeLinearRegression
@@ -79,12 +81,13 @@ instance M.ModelFit LinearRegression where
 
 linearRegression :: ModelInput -> LinearRegression
 linearRegression ModelInput { .. } =
-    let y                = VS.convert $ colData miResponse :: VS.Vector Double
-        xs               = VS.convert . colData <$> miFeatures
+    let y                = VS.convert $ fromMaybe V.empty $ listToMaybe $ M.featureVectors miResponse
+        xs               = VS.convert <$> concatMap M.featureVectors miFeatures
         n                = VS.length y
         xX               = prepareMatrix n xs
         p                = M.cols xX - 1
         lrDF             = n - p - 1
+        -- TODO: ugly as hell
         lrCoefficients   = fromMaybe VS.empty $ fst <$> (uncons $ M.toColumns $ M.linearSolveLS xX (M.fromColumns [y]))
         residuals        = y - predictLinearRegression lrCoefficients xs
         lrRss            = residuals <.> residuals
@@ -95,8 +98,8 @@ linearRegression ModelInput { .. } =
         lrRse            = sqrt lrMse
         lrStandardErrors = M.takeDiag $ M.scale lrMse (M.inv . M.unSym $ M.mTm xX) ** 0.5
         lrR2             = 1 - lrRss/lrTss
-        lrResponseName   = colName miResponse
-        lrFeatureNames   = V.fromList $ "Intercept" : (colName <$> miFeatures)
+        lrResponseName   = M.featureName miResponse
+        lrFeatureNames   = V.fromList $ "Intercept" : (M.featureName <$> miFeatures)
     in  LinearRegression { .. }
 
 

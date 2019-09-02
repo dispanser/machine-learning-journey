@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module ISL.DataSuite where
+module ISL.DataSetSuite where
 
 import           ISL.DataSet
 import           ISL.Model
@@ -31,16 +31,16 @@ spec_extractFeatures =
             extractFeatureVector "non-existing column" ds `shouldBe` Nothing
         it "selects the sales price column" $ do
             let salePrice = extractFeatureVector "SalePrice" ds
-            V.map showInt <$> colData <$> salePrice `shouldBe` M.lookup "SalePrice" dsColumnIndices
+            V.map showInt <$> featureVector <$> salePrice `shouldBe` M.lookup "SalePrice" dsColumnIndices
         it "selects multiple columns" $ do
             let Just [msSubClass, yrSold, lotArea] =
                     extractFeatureVectors [ "MSSubClass", "YrSold", "LotArea" ] ds
-            Just (V.map showInt $ colData msSubClass)  `shouldBe` (M.lookup "MSSubClass" dsColumnIndices)
-            Just (V.map showInt $ colData yrSold)      `shouldBe` (M.lookup "YrSold" dsColumnIndices)
-            Just (V.map showInt $ colData lotArea)     `shouldBe` (M.lookup "LotArea" dsColumnIndices)
+            Just (V.map showInt $ featureVector msSubClass)  `shouldBe` (M.lookup "MSSubClass" dsColumnIndices)
+            Just (V.map showInt $ featureVector yrSold)      `shouldBe` (M.lookup "YrSold" dsColumnIndices)
+            Just (V.map showInt $ featureVector lotArea)     `shouldBe` (M.lookup "LotArea" dsColumnIndices)
         it "handles categorical column MSZoning" $ do
             let Just msZoning = extractFeatureVector "MSZoning" ds
-            13 `shouldBe` 14
+            length (featureVectors msZoning) `shouldBe` 4
         where
           showInt :: Double -> Text
           showInt = show . (round :: Double -> Int)
@@ -78,20 +78,23 @@ spec_splitModel =
         let model = ModelInput
                 { miName = "hspec"
                 , miFeatures =
-                    [ Column "x1" $ V.fromList [0 .. 10]
-                    , Column "x2" $ V.fromList [10, 9 .. 0] ]
-                , miResponse = Column "y" $ V.fromList [0 .. 10] }
+                    [ SingleCol (Column "x1" $ V.fromList [0 .. 10])
+                    , SingleCol (Column "x2" $ V.fromList [10, 9 .. 0]) ]
+                , miResponse = SingleCol (Column "y" $ V.fromList [0 .. 10])
+                , miRows     = 11 }
             (trainModel, testModel) = splitModelInput (cycle [True, False]) model
         it "splits the input model" $ do
             trainModel `shouldBe` ModelInput
                 { miName = "hspec_train"
                 , miFeatures =
-                    [ Column "x1" $ V.fromList [0, 2 .. 10]
-                    , Column "x2" $ V.fromList [10, 8 .. 0] ]
-                , miResponse = Column "y" $ V.fromList [0, 2 .. 10] }
+                    [ SingleCol (Column "x1" $ V.fromList [0, 2 .. 10])
+                    , SingleCol (Column "x2" $ V.fromList [10, 8 .. 0]) ]
+                , miResponse = SingleCol (Column "y" $ V.fromList [0, 2 .. 10])
+                , miRows     = 6}
             testModel `shouldBe` ModelInput
                 { miName = "hspec_test"
                 , miFeatures =
-                    [ Column "x1" $ V.fromList [1, 3 .. 9]
-                    , Column "x2" $ V.fromList [9, 7 .. 1] ]
-                , miResponse = Column "y" $ V.fromList [1, 3 .. 9] }
+                    [ SingleCol (Column "x1" $ V.fromList [1, 3 .. 9])
+                    , SingleCol (Column "x2" $ V.fromList [9, 7 .. 1]) ]
+                , miResponse = SingleCol (Column "y" $ V.fromList [1, 3 .. 9])
+                , miRows     = 5 }

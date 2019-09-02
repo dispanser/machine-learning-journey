@@ -9,7 +9,7 @@ import qualified Data.Text as T
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
 import           ISL.DataSet (DataSet(..))
-import           ISL.Model (Feature(..))
+import           ISL.Model (Feature(..), Column(..), featureName, featureSize)
 import           Text.CSV (parseCSVFromFile, Record, printCSV)
 
 readCsvWithHeader :: FilePath -> IO DataSet
@@ -34,8 +34,13 @@ extractColumn c rs =
     in V.fromList wtf
 
 writeCsv :: FilePath -> [Feature Double] -> IO ()
-writeCsv fp columns = writeFile fp $ printCSV (header:body)
- where header      = T.unpack . colName <$> columns
-       rows        = V.length $ colData $ RU.head columns
-       createRow i = show . (V.! i) . colData <$> columns
+writeCsv fp features = writeFile fp $ printCSV (header:body)
+ where header      = T.unpack . featureName <$> features
+       rows        = fromMaybe 0 $ featureSize <$> listToMaybe features
+       createRow i = cellText i <$> features
        body        = createRow <$> [0..rows-1]
+
+cellText :: Show a => Int -> Feature a -> String
+cellText i (SingleCol Column { .. } )     = show $ colData V.! i
+-- cellText i (MultiCol  Categorical { .. }) = colSize $ RU.head features
+

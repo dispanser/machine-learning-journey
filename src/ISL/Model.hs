@@ -6,6 +6,7 @@
 
 module ISL.Model where
 
+import qualified Relude.Unsafe as RU
 import           ISL.DataSet (DataSet(..))
 import           Control.Monad.ST (runST, ST)
 import qualified Data.Map.Strict as M
@@ -27,43 +28,73 @@ class ModelFit a where
 data ModelInput = ModelInput
     { miName     :: !Text
     , miFeatures :: ![Feature Double]
-    , miResponse :: Feature Double } deriving (Show, Eq)
+    , miResponse :: Feature Double
+    , miRows     :: Int } deriving (Show, Eq)
+
+data Column a = Column
+    { colName :: Text
+    , colData :: Vector a } deriving (Eq, Show)
+
+data Categorical a = Categorical
+    { className   :: Text
+    , baseFeature :: Text
+    , features    :: [Column a] } deriving (Eq, Show)
 
 -- a feature is just a named vector
-data Feature a =
-    Column
-        { colName :: Text
-        , colData :: Vector a }
-        |
-     Categorical
-         { featureName :: Text -- name of the feature, e.g. color
-         , baseFeature :: Text -- base line feature name, e.g. "blue"
-         , features    :: [Feature Bool] }
-     deriving (Show, Eq, Ord)
+data Feature a = SingleCol (Column a)
+               | MultiCol  (Categorical a) deriving (Eq, Show)
 
+featureName :: Feature a -> Text
+featureName (SingleCol Column { .. })      = colName
+featureName (MultiCol  Categorical { .. }) = className
+
+featureSize :: Feature a -> Int
+featureSize (SingleCol col)                = colSize col
+featureSize (MultiCol  Categorical { .. }) = colSize $ RU.head features
+
+featureVectors :: Feature a -> [Vector a]
+featureVectors (SingleCol Column { .. })     = [colData]
+featureVectors (MultiCol Categorical { .. }) = colData <$> features
+
+featureVector :: Feature a -> Vector a
+featureVector (SingleCol Column { .. })     = colData
+featureVector (MultiCol Categorical { .. }) = undefined
+
+-- inputVectors :: ModelInput -> [Vector a]
+-- inputVectors ModelInput { .. } = undefined
+
+colSize :: Column a -> Int
+colSize = V.length . colData
 
 -- split the training input so that we can use one piece as training, the
 -- other part for validation.
 splitModelInput :: [Bool] -> ModelInput -> (ModelInput, ModelInput)
 splitModelInput testRows modelInput = (train, test)
- where (trainResponse, testResponse) = splitColumn testRows $ miResponse modelInput
-       (trainFeatures, testFeatures) = unzip $ splitColumn testRows <$> miFeatures modelInput
+ where (trainResponse, testResponse) = splitFeature testRows $ miResponse modelInput
+       (trainFeatures, testFeatures) = unzip $ splitFeature testRows <$> miFeatures modelInput
        train = ModelInput
-           { miName = miName modelInput <> "_train"
+           { miName     = miName modelInput <> "_train"
            , miFeatures = trainFeatures
-           , miResponse = trainResponse }
+           , miResponse = trainResponse
+           , miRows     = featureSize trainResponse }
        test  = ModelInput
-           { miName = miName modelInput <> "_test"
+           { miName     = miName modelInput <> "_test"
            , miFeatures = testFeatures
-           , miResponse = testResponse }
+           , miResponse = testResponse
+           , miRows     = featureSize testResponse }
 
-splitColumn :: [Bool] -> Feature a -> (Feature a, Feature a)
+splitFeature :: [Bool] -> Feature a -> (Feature a, Feature a)
+splitFeature idxs (SingleCol Column { .. }) =
+    let (leftV, rightV) = splitVector idxs colData
+    in (SingleCol (Column colName leftV), SingleCol (Column colName rightV))
+splitFeature idxs (MultiCol Categorical { .. }) =
+    let (leftF, rightF) = unzip $ splitColumn idxs <$> features
+    in (MultiCol (Categorical className baseFeature leftF), MultiCol (Categorical className baseFeature rightF))
+
+splitColumn :: [Bool] -> Column a -> (Column a, Column a)
 splitColumn idxs Column { .. } =
     let (leftV, rightV) = splitVector idxs colData
     in (Column colName leftV, Column colName rightV)
-splitColumn idxs Categorical { .. } =
-    let (leftF, rightF) = unzip $ splitColumn idxs <$> features
-    in (Categorical featureName baseFeature leftF, Categorical featureName baseFeature rightF)
 
 -- this actually prompted for a call for help on r/haskell:
 -- https://www.reddit.com/r/haskell/comments/ckba3b/monthly_hask_anything_august_2019/eybwyig/
@@ -95,7 +126,7 @@ splitVector idxs v =
 extractFeatureVector :: Text -> DataSet -> Maybe (Feature Double)
 extractFeatureVector colName DataSet { .. } =
     let fallback = sqrt $ -1
-    in Column colName <$> V.map (either (const fallback) identity . readEither) <$> M.lookup colName dsColumnIndices
+    in SingleCol <$> Column colName <$> V.map (either (const fallback) identity . readEither) <$> M.lookup colName dsColumnIndices
 
 extractFeatureVectors :: [Text] -> DataSet -> Maybe [Feature Double]
 extractFeatureVectors colNames ds = traverse (flip extractFeatureVector ds) colNames
@@ -107,5 +138,6 @@ extractModelInput responseName featureNames ds@DataSet { .. }  = do
     return ModelInput
         { miName     = dsName
         , miFeatures = featureCols
-        , miResponse = responseCol }
+        , miResponse = responseCol
+        , miRows     = featureSize responseCol}
 

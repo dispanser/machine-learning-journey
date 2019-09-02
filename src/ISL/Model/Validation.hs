@@ -27,13 +27,13 @@ kFoldSplit seed n k =
 -- validation set based on the provided seed. Note: split is 50 / 50.
 validateModel :: M.Predictor a => (M.ModelInput -> a) -> Int -> M.ModelInput -> Double
 validateModel modelFit seed mi =
-    let trainRows             = validationSetSplit seed (V.length . M.colData . M.miResponse $ mi)
+    let trainRows             = validationSetSplit seed $ M.miRows mi
         (trainData, testData) = M.splitModelInput trainRows mi
     in runWithTestSet modelFit trainData testData
 
 kFoldModel :: (M.Predictor a, M.ModelFit a) => (M.ModelInput -> a) -> Int -> Int -> M.ModelInput -> Double
 kFoldModel fit seed k mi =
-    let folds      = kFoldSplit seed (V.length . M.colData . M.miResponse $ mi) k
+    let folds      = kFoldSplit seed (M.miRows mi) k
         fitFold k' = let trainRows             = (== k') <$> folds
                          (testData, trainData) = M.splitModelInput trainRows mi
                      in runWithTestSet fit trainData testData
@@ -42,8 +42,8 @@ kFoldModel fit seed k mi =
 runWithTestSet :: M.Predictor a => (M.ModelInput -> a) -> M.ModelInput -> M.ModelInput -> Double
 runWithTestSet fit trainData testData =
     let modelFit              = fit trainData
-        prediction            = M.colData $ M.predict modelFit $ M.miFeatures testData
+        prediction            = M.featureVector $ M.predict modelFit $ M.miFeatures testData
         testError             = V.sum $ V.map (^(2::Int)) $ V.zipWith (-)
-            prediction (M.colData . M.miResponse $ testData)
+            prediction (M.featureVector . M.miResponse $ testData)
     in testError / fromIntegral (V.length prediction)
 
