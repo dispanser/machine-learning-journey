@@ -123,18 +123,20 @@ splitVector idxs v =
             step 0 0 $ zip idxs [0 .. n-1]
             (,) <$> V.freeze lefts' <*> V.freeze rights'
 
-extractFeatureVector :: Text -> DataSet -> Maybe (Feature Double)
-extractFeatureVector colName DataSet { .. } =
+extractFeatureVector :: DataSet -> Text -> Maybe (Feature Double)
+extractFeatureVector DataSet { .. } colName = do
     let fallback = sqrt $ -1
-    in SingleCol <$> Column colName <$> V.map (either (const fallback) identity . readEither) <$> M.lookup colName dsColumnIndices
+    colData <- colByName colName
+    return $ SingleCol $ Column colName $ V.fromList $ either (const fallback) identity . readEither <$> colData
+    -- SingleCol <$> Column colName <$> V.map (either (const fallback) identity . readEither) <$> colByName colName
 
-extractFeatureVectors :: [Text] -> DataSet -> Maybe [Feature Double]
-extractFeatureVectors colNames ds = traverse (flip extractFeatureVector ds) colNames
+extractFeatureVectors :: DataSet -> [Text] -> Maybe [Feature Double]
+extractFeatureVectors ds colNames = traverse (extractFeatureVector ds) colNames
 
 extractModelInput :: Text -> [Text] -> DataSet -> Maybe ModelInput
 extractModelInput responseName featureNames ds@DataSet { .. }  = do
-    featureCols <- extractFeatureVectors featureNames ds
-    responseCol <- extractFeatureVector  responseName ds
+    featureCols <- extractFeatureVectors ds featureNames
+    responseCol <- extractFeatureVector  ds responseName
     return ModelInput
         { miName     = dsName
         , miFeatures = featureCols

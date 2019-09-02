@@ -12,15 +12,24 @@ import           ISL.DataSet (DataSet(..))
 import           ISL.Model (Feature(..), Column(..), featureName, featureSize)
 import           Text.CSV (parseCSVFromFile, Record, printCSV)
 
+-- instance DataSet CSVDataSet where
+--   dsNames'   = M.keys . dsColumnIndices
+--   dsDims ds = (numRows ds, numCols ds)
+--   dsRows ds = fromMaybe 0 $ V.length . fst <$> (uncons $ snd <$> (M.toList $ dsColumnIndices ds))
+--   dsCols ds = M.size $ dsColumnIndices ds
+
 readCsvWithHeader :: FilePath -> IO DataSet
 readCsvWithHeader f =
     parseCSVFromFile f >>= \case
         Right csv ->
             let (header, body)  = fromMaybe ([], []) $ uncons csv
-                cols            = length header
-                dsColumnData    = createColumns cols body
+                dsNumCols       = length header
+                dsColumnData    = createColumns dsNumCols body
                 dsColumnIndices = M.fromList $ zip (T.pack <$> header) dsColumnData
+                dsNumRows       = fromMaybe 0 $ V.length <$> listToMaybe dsColumnData
+                colByName col   = V.toList <$> M.lookup col dsColumnIndices
                 dsName          = T.pack f
+                dsColumns       = T.pack <$> header
             in return $ DataSet { .. }
         Left  err -> error $ show err
 

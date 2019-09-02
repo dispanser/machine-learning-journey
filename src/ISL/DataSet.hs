@@ -22,25 +22,23 @@ class Summary a where
   summary :: a -> [Text]
 
 -- represents the input data, i.e. the housing dataset in its raw form
+class DataSet' a where
+  dsNames'   :: a -> [Text]
+  dsDims'    :: a -> (Int, Int)
+  dsCols'    :: a -> Int
+  dsRows'    :: a -> Int
+  colByName' :: a -> Text -> Maybe [Text]
+
+
 data DataSet = DataSet
-    { dsName          :: Text
-    , dsColumnIndices :: M.Map Text (Vector Text)
-    } deriving        (Show)
+    { dsName    :: Text
+    , dsColumns :: [Text]
+    , dsNumCols :: Int
+    , dsNumRows :: Int
+    , colByName :: Text -> Maybe [Text] }
 
-instance Summary DataSet where
-  summary ds = [ "DataSet:    " <> dsName ds
-               , "dimensions: " <> show (numRows ds) <> "x" <> show (numCols ds)
-               , "columns:    " <> (T.intercalate ", " $ names ds)]
+-- instance Summary DataSet where
+--   summary ds = [ "DataSet:    " <> dsName ds
+--                , "dimensions: " <> show (numRows ds) <> "x" <> show (numCols ds)
+--                , "columns:    " <> (T.intercalate ", " $ names ds)]
 
-names :: DataSet -> [Text]
-names = M.keys . dsColumnIndices
-
-dimenions :: DataSet -> (Int, Int)
-dimenions ds = (numRows ds, numCols ds)
-
-numRows :: DataSet -> Int
-numRows ds =
-    fromMaybe 0 $ V.length . fst <$> (uncons $ snd <$> (M.toList $ dsColumnIndices ds))
-
-numCols :: DataSet -> Int
-numCols ds = M.size $ dsColumnIndices ds

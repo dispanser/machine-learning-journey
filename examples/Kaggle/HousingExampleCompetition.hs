@@ -28,9 +28,9 @@ main = do
     let kFoldMSE = MV.kFoldModel OLS.linearRegression 1 5 baseModel
     putStrLn $ "5-fold cross validation MSE: " <> show kFoldMSE
 
-    let Just testData = M.extractFeatureVectors startColumnNames housingTestDS
+    let Just testData = M.extractFeatureVectors housingTestDS startColumnNames
         prediction    = M.predict lrFit testData
-        Just idCol    = M.extractFeatureVector "Id" housingTestDS
+        Just idCol    = M.extractFeatureVector housingTestDS "Id"
 
     writeCsv "./submission.csv" [idCol, prediction]
 

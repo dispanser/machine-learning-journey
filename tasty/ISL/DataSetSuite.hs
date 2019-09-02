@@ -9,7 +9,6 @@ import           ISL.DataSet.CSV (readCsvWithHeader)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 import           Data.List (sort)
-import qualified Data.Map.Strict as M
 import qualified Data.Vector as V
 
 spec_CsvDataSet :: Spec
@@ -17,30 +16,31 @@ spec_CsvDataSet =
     describe "reading advertising dataset from csv" $ do
         ds@DataSet { .. } <- runIO $ readCsvWithHeader "data/Advertising.csv"
         it "parses column names" $
-            M.keys dsColumnIndices `shouldBe` sort ["", "TV", "radio", "newspaper", "sales"]
+            dsColumns `shouldBe` ["", "TV", "radio", "newspaper", "sales"]
         it "produces correct number of colums" $
-            numCols ds `shouldBe` 5
+            dsNumCols `shouldBe` 5
         it "produces correct number of rows" $
-            numRows ds `shouldBe` 200
+            dsNumRows `shouldBe` 200
 
 spec_extractFeatures :: Spec
 spec_extractFeatures =
     describe "extracting data columns by name from housing data set" $ do
         ds@DataSet { .. } <- runIO $ readCsvWithHeader "data/housing/train.csv"
         it "produces empty result when column does not exist" $
-            extractFeatureVector "non-existing column" ds `shouldBe` Nothing
+            extractFeatureVector ds "non-existing column" `shouldBe` Nothing
         it "selects the sales price column" $ do
-            let salePrice = extractFeatureVector "SalePrice" ds
-            V.map showInt <$> featureVector <$> salePrice `shouldBe` M.lookup "SalePrice" dsColumnIndices
+            let salePrice = extractFeatureVector ds "SalePrice"
+            V.map showInt <$> featureVector <$> salePrice `shouldBe` V.fromList <$> colByName "SalePrice"
         it "selects multiple columns" $ do
             let Just [msSubClass, yrSold, lotArea] =
-                    extractFeatureVectors [ "MSSubClass", "YrSold", "LotArea" ] ds
-            Just (V.map showInt $ featureVector msSubClass)  `shouldBe` (M.lookup "MSSubClass" dsColumnIndices)
-            Just (V.map showInt $ featureVector yrSold)      `shouldBe` (M.lookup "YrSold" dsColumnIndices)
-            Just (V.map showInt $ featureVector lotArea)     `shouldBe` (M.lookup "LotArea" dsColumnIndices)
+                    extractFeatureVectors ds [ "MSSubClass", "YrSold", "LotArea" ]
+            Just (V.map showInt $ featureVector msSubClass)  `shouldBe` (V.fromList <$> colByName "MSSubClass")
+            Just (V.map showInt $ featureVector yrSold)      `shouldBe` (V.fromList <$> colByName "YrSold")
+            Just (V.map showInt $ featureVector lotArea)     `shouldBe` (V.fromList <$> colByName "LotArea")
         it "handles categorical column MSZoning" $ do
-            let Just msZoning = extractFeatureVector "MSZoning" ds
+            let Just msZoning = extractFeatureVector ds "MSZoning"
             length (featureVectors msZoning) `shouldBe` 4
+
         where
           showInt :: Double -> Text
           showInt = show . (round :: Double -> Int)
