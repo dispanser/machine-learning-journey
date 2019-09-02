@@ -8,19 +8,22 @@ import           ISL.Model
 import           ISL.DataSet.CSV (readCsvWithHeader)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
-import           Data.List (sort)
 import qualified Data.Vector as V
 
 spec_CsvDataSet :: Spec
-spec_CsvDataSet =
+spec_CsvDataSet = do
     describe "reading advertising dataset from csv" $ do
-        ds@DataSet { .. } <- runIO $ readCsvWithHeader "data/Advertising.csv"
+        ds <- runIO $ readCsvWithHeader "data/Advertising.csv"
         it "parses column names" $
-            dsColumns `shouldBe` ["", "TV", "radio", "newspaper", "sales"]
+            dsColumns ds `shouldBe` ["", "TV", "radio", "newspaper", "sales"]
         it "produces correct number of colums" $
-            dsNumCols `shouldBe` 5
+            dsNumCols ds `shouldBe` 5
         it "produces correct number of rows" $
-            dsNumRows `shouldBe` 200
+            dsNumRows ds `shouldBe` 200
+    describe "reading housing dataset from csv" $ do
+        ds <- runIO $ readCsvWithHeader "data/housing/train.csv"
+        it "reads categorical data" $
+            sort . ordNub <$> (colByName ds "MSZoning") `shouldBe` Just (sort ["C (all)", "FV", "RH", "RL", "RM"])
 
 spec_extractFeatures :: Spec
 spec_extractFeatures =

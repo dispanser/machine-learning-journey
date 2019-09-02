@@ -9,7 +9,6 @@ module ISL.Model where
 import qualified Relude.Unsafe as RU
 import           ISL.DataSet (DataSet(..))
 import           Control.Monad.ST (runST, ST)
-import qualified Data.Map.Strict as M
 import           Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
