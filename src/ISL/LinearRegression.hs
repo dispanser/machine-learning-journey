@@ -19,7 +19,7 @@ import           Statistics.Distribution.StudentT (studentT)
 import           Statistics.Distribution (complCumulative)
 
 data LinearRegression = LinearRegression
-    { lrFeatureNames   :: V.Vector T.Text
+    { lrFeatureNames   :: [T.Text]
     , lrResponseName   :: T.Text
     , lrCoefficients   :: Vector Double
     , lrStandardErrors :: Vector Double
@@ -43,11 +43,12 @@ instance Summary LinearRegression where
 
 summarizeLinearRegression :: LinearRegression -> [T.Text]
 summarizeLinearRegression lr@LinearRegression { .. }  =
-    [ formatFormula lrResponseName $ V.toList lrFeatureNames
+    [ formatFormula lrResponseName lrFeatureNames
     , "Feature           | coefficient |  std error  |  t-stats |  p-value"
     , "------------------+-------------+-------------+----------+---------"
     ] ++
-        (V.toList $ V.zipWith3 (formatCoefficientInfo $ fromIntegral lrDF) lrFeatureNames
+        (V.toList $ V.zipWith3 (formatCoefficientInfo $ fromIntegral lrDF)
+            (V.fromList $ "Intercept" : lrFeatureNames)
             (V.convert lrCoefficients) (V.convert lrStandardErrors)) ++
         [ ""
         , F.sformat ("R^2         : " % F.fixed 4) lrR2
@@ -98,7 +99,7 @@ linearRegression ModelInput { .. } =
         lrStandardErrors = M.takeDiag $ M.scale lrMse (M.inv . M.unSym $ M.mTm xX) ** 0.5
         lrR2             = 1 - lrRss/lrTss
         lrResponseName   = M.featureName miResponse
-        lrFeatureNames   = V.fromList $ "Intercept" : (concatMap M.columnNames miFeatures)
+        lrFeatureNames   = concatMap M.columnNames miFeatures
     in  LinearRegression { .. }
 
 
