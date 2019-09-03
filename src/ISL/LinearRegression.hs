@@ -38,15 +38,14 @@ instance M.Predictor LinearRegression where
           olsR  = predictLinearRegression lrCoefficients input
       in SingleCol . Column lrResponseName . VS.convert $ olsR
 
-
 instance Summary LinearRegression where
   summary = summarizeLinearRegression
 
 summarizeLinearRegression :: LinearRegression -> [T.Text]
 summarizeLinearRegression lr@LinearRegression { .. }  =
     [ formatFormula lrResponseName $ V.toList lrFeatureNames
-    , "Feature      | coefficient |  std error  |  t-stats |  p-value"
-    , "-------------+-------------+-------------+----------+---------"
+    , "Feature           | coefficient |  std error  |  t-stats |  p-value"
+    , "------------------+-------------+-------------+----------+---------"
     ] ++
         (V.toList $ V.zipWith3 (formatCoefficientInfo $ fromIntegral lrDF) lrFeatureNames
             (V.convert lrCoefficients) (V.convert lrStandardErrors)) ++
@@ -65,7 +64,7 @@ formatCoefficientInfo :: Double -> T.Text -> Double -> Double -> T.Text
 formatCoefficientInfo df name x err =
     let scieF         = F.left 11 ' ' %. F.scifmt Scientific.Exponent (Just 4)
         numF          = F.left 8 ' '  %. F.fixed 4
-        formatString = (F.left 12 ' ' %. F.stext) % " | " % scieF % " | " % scieF %
+        formatString = (F.left 17 ' ' %. F.stext) % " | " % scieF % " | " % scieF %
             " | " % numF % " | " % numF
         tStat        = x / err
         -- TODO: multiplying by two gives the same values as R, but that's not
@@ -99,7 +98,7 @@ linearRegression ModelInput { .. } =
         lrStandardErrors = M.takeDiag $ M.scale lrMse (M.inv . M.unSym $ M.mTm xX) ** 0.5
         lrR2             = 1 - lrRss/lrTss
         lrResponseName   = M.featureName miResponse
-        lrFeatureNames   = V.fromList $ "Intercept" : (M.featureName <$> miFeatures)
+        lrFeatureNames   = V.fromList $ "Intercept" : (concatMap M.columnNames miFeatures)
     in  LinearRegression { .. }
 
 
@@ -107,7 +106,11 @@ predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =
     let n  = fromMaybe 0 $ VS.length . fst <$> uncons xs
         xX = prepareMatrix n xs
-    in xX #> bs
+    in if M.cols xX == VS.length bs
+          then xX #> bs
+          else error $ "number of input columns '" <>
+                show (M.cols xX) <> "' does not match expected '" <>
+                    show (VS.length bs) <> "'"
 
 mean :: (VS.Storable a, Fractional a) => Vector a -> a
 mean xs = VS.sum xs / (fromIntegral $ VS.length xs)
@@ -129,4 +132,6 @@ pValue df v =
 -- transform a list of column vectors into a matrix, prepending a column of ones
 -- for the intercept
 prepareMatrix :: Int -> [Vector Double] -> Matrix R
-prepareMatrix n xs = M.fromColumns $ VS.replicate n 1 : xs
+prepareMatrix n xs =
+    let m = M.fromColumns $ VS.replicate n 1 : xs
+    in trace (show (M.rows m, M.cols m)) m

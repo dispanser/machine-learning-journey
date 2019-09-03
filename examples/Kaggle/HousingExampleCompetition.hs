@@ -17,6 +17,7 @@ main = do
             [ "LotArea", "YearBuilt", "1stFlrSF", "2ndFlrSF"
             , "BedroomAbvGr", "TotRmsAbvGrd", "OverallCond"
             , "OverallQual", "LandSlope" , "BldgType", "ExterQual"
+            , "MSSubClass", "GarageArea", "BsmtFullBath"
             ]
     housingDS <- readCsvWithHeader "data/housing/train.csv"
     housingTestDS <- readCsvWithHeader "data/housing/test.csv"

@@ -46,6 +46,10 @@ featureName :: Feature a -> Text
 featureName (SingleCol Column { .. })      = colName
 featureName (MultiCol  Categorical { .. }) = className
 
+columnNames :: Feature a -> [Text]
+columnNames (SingleCol Column { .. })      = [colName]
+columnNames (MultiCol  Categorical { .. }) = colName <$> features
+
 featureSize :: Feature a -> Int
 featureSize (SingleCol col)                = colSize col
 featureSize (MultiCol  Categorical { .. }) = maybe 0 colSize $ listToMaybe features
@@ -126,20 +130,24 @@ splitVector idxs v =
 
 extractFeatureVector :: DataSet -> Text -> Maybe (Feature Double)
 extractFeatureVector DataSet { .. } colName = do
-    let fallback = sqrt $ -1
     colData   <- colByName colName
     firstCell <- listToMaybe colData
     let parseFirst = readEither firstCell :: Either Text Double
     case parseFirst of
-        Right _ -> return $ SingleCol $ Column colName $ V.fromList $
-            either (const fallback) identity . readEither <$> colData
-        Left _  -> return $ MultiCol $ createCategorical colName colData
+        Right _ -> return . SingleCol $ createSingleCol colName colData
+        Left _  -> return . MultiCol  $ createCategorical colName colData
 
 replaceNAs :: Vector Double -> Vector Double
 replaceNAs xs =
     let cleanVals = V.filter (not . isNaN) xs
         mean      = V.sum cleanVals / fromIntegral (V.length cleanVals)
     in V.map (\x -> if isNaN x then mean else x) xs
+
+createSingleCol :: Text -> [Text] -> Column Double
+createSingleCol colName colData =
+    let fallback = sqrt $ -1
+    in Column colName $ replaceNAs $ V.fromList $
+            either (const fallback) identity . readEither <$> colData
 
 createCategorical :: Text -> [Text] -> Categorical Double
 createCategorical className colData =
@@ -154,8 +162,8 @@ extractFeatureVectors :: DataSet -> [Text] -> Maybe [Feature Double]
 extractFeatureVectors ds colNames = traverse (extractFeatureVector ds) colNames
 
 extractModelInput :: Text -> [Text] -> DataSet -> Maybe ModelInput
-extractModelInput responseName featureNames ds@DataSet { .. }  = do
-    featureCols <- extractFeatureVectors ds featureNames
+extractModelInput responseName names ds@DataSet { .. }  = do
+    featureCols <- extractFeatureVectors ds names
     responseCol <- extractFeatureVector  ds responseName
     return ModelInput
         { miName     = dsName
