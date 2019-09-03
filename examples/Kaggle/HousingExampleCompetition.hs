@@ -13,12 +13,13 @@ import qualified ISL.LinearRegression as OLS
 
 main :: IO ()
 main = do
-    let startColumnNames =
-            [ "LotArea", "YearBuilt", "1stFlrSF", "2ndFlrSF", "FullBath"
-            , "BedroomAbvGr", "TotRmsAbvGrd"]
+    let cols =
+            [ "LotArea", "YearBuilt", "1stFlrSF", "2ndFlrSF"
+            , "BedroomAbvGr", "TotRmsAbvGrd", "OverallCond"
+            , "OverallQual", "LandSlope" ]
     housingDS <- readCsvWithHeader "data/housing/train.csv"
     housingTestDS <- readCsvWithHeader "data/housing/test.csv"
-    let Just baseModel = M.extractModelInput "SalePrice" startColumnNames housingDS
+    let Just baseModel = M.extractModelInput "SalePrice" cols housingDS
         lrFit          = M.fit baseModel :: OLS.LinearRegression
     mapM_ print $ summary lrFit
 
@@ -28,7 +29,7 @@ main = do
     let kFoldMSE = MV.kFoldModel OLS.linearRegression 1 5 baseModel
     putStrLn $ "5-fold cross validation MSE: " <> show kFoldMSE
 
-    let Just testData = M.extractFeatureVectors housingTestDS startColumnNames
+    let Just testData = M.extractFeatureVectors housingTestDS cols
         prediction    = M.predict lrFit testData
         Just idCol    = M.extractFeatureVector housingTestDS "Id"
 

@@ -17,7 +17,6 @@ import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
 import           Statistics.Distribution.StudentT (studentT)
 import           Statistics.Distribution (complCumulative)
-import qualified Debug.Trace as D
 
 data LinearRegression = LinearRegression
     { lrFeatureNames   :: V.Vector T.Text
@@ -81,7 +80,8 @@ instance M.ModelFit LinearRegression where
 
 linearRegression :: ModelInput -> LinearRegression
 linearRegression ModelInput { .. } =
-    let y                = VS.convert $ fromMaybe V.empty $ listToMaybe $ M.featureVectors miResponse
+    let y                = VS.convert $ fromMaybe V.empty $ listToMaybe $
+                               M.featureVectors miResponse
         xs               = VS.convert <$> concatMap M.featureVectors miFeatures
         n                = VS.length y
         xX               = prepareMatrix n xs
@@ -130,8 +130,3 @@ pValue df v =
 -- for the intercept
 prepareMatrix :: Int -> [Vector Double] -> Matrix R
 prepareMatrix n xs = M.fromColumns $ VS.replicate n 1 : xs
-
-debugShow :: Show a => String -> a -> a
-debugShow prefix v =
-    let msg = prefix ++ " " ++ show v
-    in D.trace msg v

@@ -40,14 +40,28 @@ spec_extractFeatures =
             Just (V.map showInt $ featureVector msSubClass)  `shouldBe` (V.fromList <$> colByName "MSSubClass")
             Just (V.map showInt $ featureVector yrSold)      `shouldBe` (V.fromList <$> colByName "YrSold")
             Just (V.map showInt $ featureVector lotArea)     `shouldBe` (V.fromList <$> colByName "LotArea")
-        it "handles categorical column MSZoning" $ do
-            let Just msZoning = extractFeatureVector ds "MSZoning"
-            length (featureVectors msZoning) `shouldBe` 4
-
         where
           showInt :: Double -> Text
           showInt = show . (round :: Double -> Int)
 
+spec_categoricalFeatures :: Spec
+spec_categoricalFeatures =
+    describe "supports categorical features" $ do
+        ds <- runIO $ readCsvWithHeader "data/categorical.csv"
+        it "handles cat1 properly" $ do
+            let Just (MultiCol Categorical { .. }) = extractFeatureVector ds "cat1"
+            className `shouldBe` "cat1"
+            baseFeature `shouldBe` "A"
+            features `shouldBe`
+              [ Column "cat1_B" $ V.fromList [0.0, 1.0, 0.0, 0.0, 1.0]
+              , Column "cat1_C" $ V.fromList [1.0, 0.0, 1.0, 0.0, 0.0] ]
+        it "handles cat2 properly" $ do
+            let Just (MultiCol Categorical { .. }) = extractFeatureVector ds "cat2"
+            className `shouldBe` "cat2"
+            baseFeature `shouldBe` "X"
+            features `shouldBe`
+              [ Column "cat2_Y" $ V.fromList [0.0, 0.0, 0.0, 0.0, 1.0]
+              , Column "cat2_Z" $ V.fromList [0.0, 0.0, 0.0, 1.0, 0.0] ]
 
 spec_extractDataSet :: Spec
 spec_extractDataSet =

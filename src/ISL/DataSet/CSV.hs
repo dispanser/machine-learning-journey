@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -9,7 +10,8 @@ import qualified Data.Text as T
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
 import           ISL.DataSet (DataSet(..))
-import           ISL.Model (Feature(..), Column(..), featureName, featureSize)
+import           ISL.Model (Feature(..), Column(..), Categorical(..),
+                        featureName, featureSize)
 import           Text.CSV (parseCSVFromFile, Record, printCSV)
 
 -- instance DataSet CSVDataSet where
@@ -51,5 +53,6 @@ writeCsv fp features = writeFile fp $ printCSV (header:body)
 
 cellText :: Show a => Int -> Feature a -> String
 cellText i (SingleCol Column { .. } )     = show $ colData V.! i
--- cellText i (MultiCol  Categorical { .. }) = colSize $ RU.head features
+cellText _i (MultiCol  Categorical { .. }) =
+    error "writing categorical feature to csv currently not supported"
 

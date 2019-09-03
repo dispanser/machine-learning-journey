@@ -6,7 +6,6 @@
 
 module ISL.Model where
 
-import qualified Relude.Unsafe as RU
 import           ISL.DataSet (DataSet(..))
 import           Control.Monad.ST (runST, ST)
 import           Data.Vector (Vector, (!))
@@ -49,7 +48,7 @@ featureName (MultiCol  Categorical { .. }) = className
 
 featureSize :: Feature a -> Int
 featureSize (SingleCol col)                = colSize col
-featureSize (MultiCol  Categorical { .. }) = colSize $ RU.head features
+featureSize (MultiCol  Categorical { .. }) = maybe 0 colSize $ listToMaybe features
 
 featureVectors :: Feature a -> [Vector a]
 featureVectors (SingleCol Column { .. })     = [colData]
@@ -57,7 +56,10 @@ featureVectors (MultiCol Categorical { .. }) = colData <$> features
 
 featureVector :: Feature a -> Vector a
 featureVector (SingleCol Column { .. })     = colData
-featureVector (MultiCol Categorical { .. }) = undefined
+featureVector (MultiCol Categorical { .. }) =
+    error $ "trying to extract a single feature from categorical column '"
+        <> className <> "'"
+
 
 -- inputVectors :: ModelInput -> [Vector a]
 -- inputVectors ModelInput { .. } = undefined
@@ -125,9 +127,22 @@ splitVector idxs v =
 extractFeatureVector :: DataSet -> Text -> Maybe (Feature Double)
 extractFeatureVector DataSet { .. } colName = do
     let fallback = sqrt $ -1
-    colData <- colByName colName
-    return $ SingleCol $ Column colName $ V.fromList $ either (const fallback) identity . readEither <$> colData
-    -- SingleCol <$> Column colName <$> V.map (either (const fallback) identity . readEither) <$> colByName colName
+    colData   <- colByName colName
+    firstCell <- listToMaybe colData
+    let parseFirst = readEither firstCell :: Either Text Double
+    case parseFirst of
+        Right _ -> return $ SingleCol $ Column colName $ V.fromList $
+            either (const fallback) identity . readEither <$> colData
+        Left _  -> return $ MultiCol $ createCategorical colName colData
+
+createCategorical :: Text -> [Text] -> Categorical Double
+createCategorical className colData =
+    let klasses                    = debugShow ("klasses for " <> className) $ sort . ordNub $ colData
+        Just (baseFeature, others) = uncons klasses
+        features                   = fmap createKlassVector others
+        createKlassVector kl       = Column (className <> "_" <> kl) $ V.fromList $
+            fmap (\d -> if d == kl then 1.0 else 0.0) colData
+    in  Categorical { .. }
 
 extractFeatureVectors :: DataSet -> [Text] -> Maybe [Feature Double]
 extractFeatureVectors ds colNames = traverse (extractFeatureVector ds) colNames
