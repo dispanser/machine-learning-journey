@@ -44,6 +44,12 @@ spec_extractFeatures =
           showInt :: Double -> Text
           showInt = show . (round :: Double -> Int)
 
+spec_replaceNAs :: Spec
+spec_replaceNAs =
+    it "N/A values should be replaced by the variable mean" $ do
+        let vs = V.fromList [-1, sqrt $ -1, 3]
+        replaceNAs vs `shouldBe` V.fromList [-1, 1, 3 :: Double]
+
 spec_categoricalFeatures :: Spec
 spec_categoricalFeatures =
     describe "supports categorical features" $ do

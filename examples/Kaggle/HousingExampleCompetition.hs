@@ -16,7 +16,8 @@ main = do
     let cols =
             [ "LotArea", "YearBuilt", "1stFlrSF", "2ndFlrSF"
             , "BedroomAbvGr", "TotRmsAbvGrd", "OverallCond"
-            , "OverallQual", "LandSlope" ]
+            , "OverallQual", "LandSlope" , "BldgType", "ExterQual"
+            ]
     housingDS <- readCsvWithHeader "data/housing/train.csv"
     housingTestDS <- readCsvWithHeader "data/housing/test.csv"
     let Just baseModel = M.extractModelInput "SalePrice" cols housingDS

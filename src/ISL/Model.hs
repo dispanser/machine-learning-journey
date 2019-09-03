@@ -135,6 +135,12 @@ extractFeatureVector DataSet { .. } colName = do
             either (const fallback) identity . readEither <$> colData
         Left _  -> return $ MultiCol $ createCategorical colName colData
 
+replaceNAs :: Vector Double -> Vector Double
+replaceNAs xs =
+    let cleanVals = V.filter (not . isNaN) xs
+        mean      = V.sum cleanVals / fromIntegral (V.length cleanVals)
+    in V.map (\x -> if isNaN x then mean else x) xs
+
 createCategorical :: Text -> [Text] -> Categorical Double
 createCategorical className colData =
     let klasses                    = debugShow ("klasses for " <> className) $ sort . ordNub $ colData
