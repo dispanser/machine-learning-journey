@@ -47,9 +47,9 @@ createDataSet' :: (Text -> Bool) -> FilePath -> IO DataSet'
 createDataSet' p f =
     parseCSVFromFile f >>= \case
         Right (header:body) ->
-            let bodyColumns = (toText <$>) <$> zipAll body
+            let bodyColumns = (toText <$>) <$> zipAll (filter (/= [""]) body)
                 name        = toText f
-                features = zipWith createFeature (toText <$> header) bodyColumns
+                features = filter (p . featureName) $ zipWith createFeature (toText <$> header) bodyColumns
             in return $ createFromFeatures name features
         Right [] -> error $ "no data: empty csv"
         Left  err -> error $ show err
