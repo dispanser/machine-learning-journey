@@ -64,6 +64,14 @@ featureVector (MultiCol Categorical { .. }) =
     error $ "trying to extract a single feature from categorical column '"
         <> className <> "'"
 
+baselineColumn :: Text -> Categorical Double -> Column Double
+baselineColumn fName Categorical { .. } = Column
+    { colName = fName <> "_" <> baseFeature
+    , colData = v }
+ where n      = maybe 0 colSize $ listToMaybe features
+       vsum i = sum $ (V.! i) . colData <$> features
+       v      = V.generate n (\i -> 1.0 - vsum i) :: Vector Double
+
 featureColumns :: Feature a -> [Column a]
 featureColumns (SingleCol col)               = [col]
 featureColumns (MultiCol Categorical { .. }) = features

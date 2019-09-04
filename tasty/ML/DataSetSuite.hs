@@ -16,6 +16,8 @@ spec_DataSetFromFeatures = do
             fNAs          = createFeature "col2" ["1.0", "NA", "3.0"]
             fCat          = createFeature "col3" ["red", "yellow", "blue"]
             DataSet' {..} = createFromFeatures "test01" $ [fDouble, fNAs, fCat]
+            colRed        = Column "col3_red" $ V.fromList [1.0, 0.0, 0.0 ]
+            colBlue       = Column "col3_blue" $ V.fromList [0.0, 0.0, 1.0]
         it "should have proper name" $
             dsName' `shouldBe` "test01"
         it "contain all input features" $ do
@@ -23,10 +25,21 @@ spec_DataSetFromFeatures = do
             dsFeatures `shouldSatisfy` (fNAs    `elem`)
             dsFeatures `shouldSatisfy` (fCat    `elem`)
         it "contains all columns" $ do
-            dsColumns' `shouldSatisfy` (elem $ Column "col3_red" $ V.fromList [1.0, 0.0, 0.0 ])
+            dsColumns' `shouldSatisfy` (elem colRed)
             length dsColumns' `shouldBe` 4
         it "nows the proper number of rows" $
             dsNumRows' `shouldBe` 3
+        it "supports lookup by column name" $ do
+            colByName' "col3_red" `shouldBe` Just colRed
+        it "supports lookup by feature name" $ do
+            featByName "col2" `shouldBe` Just fNAs
+        it "supports lookup by column name of baseline class" $
+            colByName' "col3_blue" `shouldBe` Just colBlue
+        it "supports lookup by column name of non-existing class" $
+            -- useful when the test set contains previously unseen classes,
+            -- or the other way around: just return an empty column, given
+            -- that at least the underlying feature exists and is categorical.
+            colByName' "col3_green" `shouldBe` Just (Column "col3_green" $ V.replicate 3 0.0)
 
 spec_CreateFeature :: Spec
 spec_CreateFeature = do
