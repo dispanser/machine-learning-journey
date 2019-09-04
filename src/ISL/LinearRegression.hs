@@ -133,6 +133,4 @@ pValue df v =
 -- transform a list of column vectors into a matrix, prepending a column of ones
 -- for the intercept
 prepareMatrix :: Int -> [Vector Double] -> Matrix R
-prepareMatrix n xs =
-    let m = M.fromColumns $ VS.replicate n 1 : xs
-    in trace (show (M.rows m, M.cols m)) m
+prepareMatrix n xs = M.fromColumns $ VS.replicate n 1 : xs

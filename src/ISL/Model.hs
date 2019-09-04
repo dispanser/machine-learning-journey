@@ -22,7 +22,7 @@ class ModelFit a where
 -- TODO: better name, please
 -- represents the input to a fit procedure: a data set and the
 -- names of the features, the name of the response etc.
--- at this stage, the inputs are verified
+-- at this stage, the inputs are verified (in theory)
 data ModelInput = ModelInput
     { miName     :: !Text
     , miFeatures :: ![Feature Double]
@@ -64,6 +64,9 @@ featureVector (MultiCol Categorical { .. }) =
     error $ "trying to extract a single feature from categorical column '"
         <> className <> "'"
 
+featureColumns :: Feature a -> [Column a]
+featureColumns (SingleCol col)               = [col]
+featureColumns (MultiCol Categorical { .. }) = features
 
 -- inputVectors :: ModelInput -> [Vector a]
 -- inputVectors ModelInput { .. } = undefined
@@ -129,13 +132,15 @@ splitVector idxs v =
             (,) <$> V.freeze lefts' <*> V.freeze rights'
 
 extractFeatureVector :: DataSet -> Text -> Maybe (Feature Double)
-extractFeatureVector DataSet { .. } colName = do
-    colData   <- colByName colName
-    firstCell <- listToMaybe colData
-    let parseFirst = readEither firstCell :: Either Text Double
-    case parseFirst of
-        Right _ -> return . SingleCol $ createSingleCol colName colData
-        Left _  -> return . MultiCol  $ createCategorical colName colData
+extractFeatureVector DataSet { .. } colName = createFeature colName <$> colByName colName
+
+createFeature :: Text -> [Text] -> Feature Double
+createFeature name []     = SingleCol $ Column name V.empty
+createFeature name xs@(x:_) =
+    let parseFirst = readEither x :: Either Text Double
+    in case parseFirst of
+        Right _ -> SingleCol $ createSingleCol name xs
+        Left _  -> MultiCol  $ createCategorical name xs
 
 replaceNAs :: Vector Double -> Vector Double
 replaceNAs xs =
@@ -151,7 +156,8 @@ createSingleCol colName colData =
 
 createCategorical :: Text -> [Text] -> Categorical Double
 createCategorical className colData =
-    let klasses                    = debugShow ("klasses for " <> className) $ sort . ordNub $ colData
+    let klasses                    = -- debugShow ("klasses for " <> className) $
+            sort . ordNub $ colData
         Just (baseFeature, others) = uncons klasses
         features                   = fmap createKlassVector others
         createKlassVector kl       = Column (className <> "_" <> kl) $ V.fromList $
@@ -169,5 +175,5 @@ extractModelInput responseName names ds@DataSet { .. }  = do
         { miName     = dsName
         , miFeatures = featureCols
         , miResponse = responseCol
-        , miRows     = featureSize responseCol}
+        , miRows     = featureSize responseCol }
 

@@ -24,6 +24,9 @@ spec_CsvDataSet = do
         ds <- runIO $ readCsvWithHeader "data/housing/train.csv"
         it "reads categorical data" $
             sort . ordNub <$> (colByName ds "MSZoning") `shouldBe` Just (sort ["C (all)", "FV", "RH", "RL", "RM"])
+    describe "zipAll" $ do
+        it "should transpose a list of lists" $
+            zipAll [[1..3::Int], [7..9], [13..15]] `shouldBe` [[1, 7, 13], [2, 8, 14], [3, 9, 15]]
 
 spec_extractFeatures :: Spec
 spec_extractFeatures =

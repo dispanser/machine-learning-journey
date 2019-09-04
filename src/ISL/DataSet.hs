@@ -17,14 +17,15 @@ import           Data.Text (Text)
 class Summary a where
   summary :: a -> [Text]
 
--- represents the input data, i.e. the housing dataset in its raw form
-class DataSet' a where
-  dsNames'   :: a -> [Text]
-  dsDims'    :: a -> (Int, Int)
-  dsCols'    :: a -> Int
-  dsRows'    :: a -> Int
-  colByName' :: a -> Text -> Maybe [Text]
-
+-- data DataSet' = DataSet'
+--     { dsName'    :: Text
+--     , dsFeatures :: [Feature Double] -- hm, there is some duplication
+--     , dsColumns' :: [Column Double]
+--     , dsNumRows' :: Int
+--     , dsNumCols' :: Int
+--     , colByName' :: Text -> Maybe (Column Double)
+--     , featByName :: Text -> Maybe (Feature Double)
+--     }
 
 data DataSet = DataSet
     { dsName    :: Text
