@@ -7,7 +7,9 @@
 module ISL.Model where
 
 import           ML.DataSet (DataSet'(..), Feature(..), Column(..)
-                            , Categorical(..), featureSize, createFeature)
+                            , Categorical(..), FeatureSpace(..)
+                            , FeatureSpec(..), featureSize
+                            , createFeature, createFeatureSpace)
 import           ISL.DataSet (DataSet(..))
 import           Control.Monad.ST (runST, ST)
 import           Data.Vector (Vector, (!))
@@ -16,14 +18,19 @@ import qualified Data.Vector.Mutable as VM
 import           Data.Text (Text)
 
 -- initial stub type for prediction result: the column vector of response
-type Prediction = Vector Double
+type Prediction = Feature Double
 
 class Predictor a where
-  predict ::  a -> [Feature Double] -> Feature Double
+  predict  :: a -> [Feature Double] -> Feature Double
   predict' :: a -> DataSet'         -> Prediction
 
 class ModelFit a where
-  fit :: ModelInput -> a
+  fit  :: ModelInput -> a
+  fit' :: DataSet' -> ModelSpec -> a
+
+data ModelSpec = ModelSpec
+    { features' :: FeatureSpace
+    , response  :: FeatureSpec }
 
 -- TODO: better name, please
 -- represents the input to a fit procedure: a data set and the
@@ -34,8 +41,16 @@ data ModelInput = ModelInput
     , miFeatures :: ![Feature Double]
     , miResponse :: Feature Double
     , miRows     :: Int } deriving (Show, Eq)
--- inputVectors :: ModelInput -> [Vector a]
--- inputVectors ModelInput { .. } = undefined
+
+modelSpecByFeatureNames :: FeatureSpace -> Text -> [Text] -> Either Text ModelSpec
+modelSpecByFeatureNames FeatureSpace {..} responseName featureNames = do
+    response <- maybe (Left $ "response named '" <> responseName <> "' not found")
+        Right $ findFeature responseName
+    features <- forM featureNames (\fn -> maybe (Left $ "feature named '" <> fn <> "' not found")
+                   Right $ findFeature fn)
+    return $ ModelSpec
+        { features' = createFeatureSpace features
+        , response  = response }
 
 -- split the training input so that we can use one piece as training, the
 -- other part for validation.

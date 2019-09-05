@@ -22,18 +22,33 @@ import qualified Data.Vector as V
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
 data DataSet' = DataSet'
-    { dsName'    :: T.Text
-    , dsFeatures :: [Feature Double]
-    , dsColumns' :: [Column Double]
-    , dsNumRows' :: Int
-    , dsNumCols' :: Int
-    , colByName' :: T.Text -> Maybe (Column Double)
-    , featByName :: T.Text -> Maybe (Feature Double)
+    { dsName'      :: T.Text
+    , dsFeatures   :: [Feature Double]
+    , dsColumns'   :: [Column Double]
+    , dsNumRows'   :: Int
+    , dsNumCols'   :: Int
+    , colByName'   :: T.Text  -> Maybe (Column Double)
+    , featByName   :: T.Text  -> Maybe (Feature Double)
+    , featureSpace :: FeatureSpace
     }
 
-data ModelMetaData = ModelMetaData
-    {
+-- meta data for a data set, defining the subset of the data that's
+-- considered active in a given context (features available in a
+-- dataset, features that where used to train a model,
+-- result for variable selection algorithm, etc).
+data FeatureSpace = FeatureSpace
+    { findFeature :: Text -> Maybe FeatureSpec
+    , knownFeats  :: [Text]
     }
+
+
+-- TODO: this is a subset of the information that's currently stored
+-- as part of the Feature itself.
+data FeatureSpec = FeatureSpec
+    { featName          :: Text
+    , column            :: Text
+    , additionalColumns :: [Text]
+    } deriving (Eq, Show)
 
 data Column a = Column
     { colName :: Text
@@ -49,13 +64,13 @@ data Feature a = SingleCol (Column a)
 
 createFromFeatures :: T.Text -> [Feature Double] -> DataSet'
 createFromFeatures name feats =
-    let dsFeatures   = feats
-        dsName'      = name
+    let dsName'      = name
+        dsFeatures   = feats
         dsColumns'   = concatMap featureColumns feats
         dsNumRows'   = fromMaybe 0 $ featureSize <$> listToMaybe feats
         dsNumCols'   = length dsColumns'
         columnIndex  = M.fromList $ zip (colName <$> dsColumns') dsColumns'
-        featureIndex = M.fromList $ zip (featureName <$> dsFeatures) dsFeatures
+        featureIndex = M.fromList $ zip (featureName <$> feats) feats
         featByName f = M.lookup f featureIndex
         findMissingClass :: T.Text -> Maybe (Column Double)
         findMissingClass (splitFeatureName -> Just (feat, klass)) =
@@ -67,7 +82,25 @@ createFromFeatures name feats =
                        else return $ Column (feat <> "_" <> klass) $ V.replicate dsNumRows' 0.0
         findMissingClass _ = Nothing
         colByName' c = whenNothing (M.lookup c columnIndex) (findMissingClass c)
+        featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
     in DataSet' { .. }
+
+createFeatureSpec :: Feature a -> FeatureSpec
+createFeatureSpec (MultiCol Categorical { .. }) = FeatureSpec
+    { featName          = className
+    , column            = baseFeature
+    , additionalColumns = (getColName . colName) <$> features }
+     where getColName :: Text -> Text
+           getColName cn = fromMaybe "" $ snd <$> splitFeatureName cn
+createFeatureSpec (SingleCol col) = FeatureSpec
+    { featName          = colName col
+    , column            = colName col
+    , additionalColumns = [] }
+
+createFeatureSpace :: [FeatureSpec] -> FeatureSpace
+createFeatureSpace fs =
+    let m = M.fromList $ zip (featName <$> fs) fs
+    in  FeatureSpace (flip M.lookup m) (M.keys m)
 
 -- split a text value into a prefix before _, considered the feature name,
 -- and the remaining text, considered the name of the class of the categorical

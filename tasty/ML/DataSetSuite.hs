@@ -4,18 +4,19 @@
 module ML.DataSetSuite where
 
 import           ML.DataSet
-import           ISL.Model
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 import qualified Data.Vector as V
 
+fDouble, fNAs, fCat :: Feature Double
+fDouble       = createFeature "col1" ["1.0", "2.0", "3.0"]
+fNAs          = createFeature "col2" ["1.0", "NA", "3.0"]
+fCat          = createFeature "col3" ["red", "yellow", "blue"]
+
 spec_DataSetFromFeatures :: Spec
 spec_DataSetFromFeatures = do
     describe "dataset created with createFromFeatures" $ do
-        let fDouble       = createFeature "col1" ["1.0", "2.0", "3.0"]
-            fNAs          = createFeature "col2" ["1.0", "NA", "3.0"]
-            fCat          = createFeature "col3" ["red", "yellow", "blue"]
-            DataSet' {..} = createFromFeatures "test01" $ [fDouble, fNAs, fCat]
+        let DataSet' {..} = createFromFeatures "test01" $ [fDouble, fNAs, fCat]
             colRed        = Column "col3_red" $ V.fromList [1.0, 0.0, 0.0 ]
             colBlue       = Column "col3_blue" $ V.fromList [0.0, 0.0, 1.0]
         it "should have proper name" $
@@ -40,6 +41,11 @@ spec_DataSetFromFeatures = do
             -- or the other way around: just return an empty column, given
             -- that at least the underlying feature exists and is categorical.
             colByName' "col3_green" `shouldBe` Just (Column "col3_green" $ V.replicate 3 0.0)
+        it "defines the feature space covered" $ do
+            let expected = createFeatureSpace [ FeatureSpec "col1" "col1" []
+                                        , FeatureSpec "col2" "col2" []
+                                        , FeatureSpec "col3" "blue" ["red", "yellow"] ]
+            (knownFeats featureSpace) `shouldBe` ["col1", "col2", "col3"]
 
 spec_CreateFeature :: Spec
 spec_CreateFeature = do

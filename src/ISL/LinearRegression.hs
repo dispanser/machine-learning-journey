@@ -39,6 +39,15 @@ instance M.Predictor LinearRegression where
       let input = VS.convert <$> concatMap DS.featureVectors xss
           olsR  = predictLinearRegression lrCoefficients input
       in SingleCol . Column lrResponseName . VS.convert $ olsR
+  -- we need to make sure that the data set passed in is compatible with
+  -- the dataset used during training, or put differently, it is able to
+  -- provide all the columns that we need. The list of features stored in
+  -- the linear regression is a good start, but it's not capable of making
+  -- sure that our baseline feature is the same.
+  -- however, this problem should not be solved in the OLS module, instead
+  -- it's something that applies to all kinds of algorithms, including
+  -- classification and all the fancy stuff
+  predict' LinearRegression { .. } _ds = undefined
 
 instance Summary LinearRegression where
   summary = summarizeLinearRegression
@@ -78,7 +87,8 @@ formatCoefficientInfo df name x err =
         (Scientific.fromFloatDigits err) tStat pV
 
 instance M.ModelFit LinearRegression where
-  fit = linearRegression
+  fit  = linearRegression
+  -- fit' = linearRegression'
 
 linearRegression :: ModelInput -> LinearRegression
 linearRegression ModelInput { .. } =
@@ -104,6 +114,9 @@ linearRegression ModelInput { .. } =
         lrFeatureNames   = concatMap DS.columnNames miFeatures
     in  LinearRegression { .. }
 
+
+-- linearRegression' :: DataSet' -> ModelSpec -> LinearRegression =
+-- linearRegression' ds ms =
 
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =
