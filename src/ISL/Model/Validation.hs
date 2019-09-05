@@ -7,6 +7,7 @@ module ISL.Model.Validation
      where
 
 import qualified ISL.Model as M
+import qualified ML.DataSet as DS
 import qualified System.Random as Rand
 import qualified Data.Vector as V
 
@@ -42,8 +43,8 @@ kFoldModel fit seed k mi =
 runWithTestSet :: M.Predictor a => (M.ModelInput -> a) -> M.ModelInput -> M.ModelInput -> Double
 runWithTestSet fit trainData testData =
     let modelFit              = fit trainData
-        prediction            = M.featureVector $ M.predict modelFit $ M.miFeatures testData
+        prediction            = DS.featureVector $ M.predict modelFit $ M.miFeatures testData
         testError             = V.sum $ V.map (^(2::Int)) $ V.zipWith (-)
-            prediction (M.featureVector . M.miResponse $ testData)
+            prediction (DS.featureVector . M.miResponse $ testData)
     in testError / fromIntegral (V.length prediction)
 

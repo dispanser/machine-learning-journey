@@ -6,6 +6,8 @@
 
 module ISL.Model where
 
+import           ML.DataSet (DataSet'(..), Feature(..), Column(..)
+                            , Categorical(..), featureSize, createFeature)
 import           ISL.DataSet (DataSet(..))
 import           Control.Monad.ST (runST, ST)
 import           Data.Vector (Vector, (!))
@@ -13,8 +15,12 @@ import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
 import           Data.Text (Text)
 
+-- initial stub type for prediction result: the column vector of response
+type Prediction = Vector Double
+
 class Predictor a where
-  predict :: a -> [Feature Double] -> Feature Double
+  predict ::  a -> [Feature Double] -> Feature Double
+  predict' :: a -> DataSet'         -> Prediction
 
 class ModelFit a where
   fit :: ModelInput -> a
@@ -28,59 +34,8 @@ data ModelInput = ModelInput
     , miFeatures :: ![Feature Double]
     , miResponse :: Feature Double
     , miRows     :: Int } deriving (Show, Eq)
-
-data Column a = Column
-    { colName :: Text
-    , colData :: Vector a } deriving (Eq, Show)
-
-data Categorical a = Categorical
-    { className   :: Text
-    , baseFeature :: Text
-    , features    :: [Column a] } deriving (Eq, Show)
-
--- a feature is just a named vector
-data Feature a = SingleCol (Column a)
-               | MultiCol  (Categorical a) deriving (Eq, Show)
-
-featureName :: Feature a -> Text
-featureName (SingleCol Column { .. })      = colName
-featureName (MultiCol  Categorical { .. }) = className
-
-columnNames :: Feature a -> [Text]
-columnNames (SingleCol Column { .. })      = [colName]
-columnNames (MultiCol  Categorical { .. }) = colName <$> features
-
-featureSize :: Feature a -> Int
-featureSize (SingleCol col)                = colSize col
-featureSize (MultiCol  Categorical { .. }) = maybe 0 colSize $ listToMaybe features
-
-featureVectors :: Feature a -> [Vector a]
-featureVectors (SingleCol Column { .. })     = [colData]
-featureVectors (MultiCol Categorical { .. }) = colData <$> features
-
-featureVector :: Feature a -> Vector a
-featureVector (SingleCol Column { .. })     = colData
-featureVector (MultiCol Categorical { .. }) =
-    error $ "trying to extract a single feature from categorical column '"
-        <> className <> "'"
-
-baselineColumn :: Text -> Categorical Double -> Column Double
-baselineColumn fName Categorical { .. } = Column
-    { colName = fName <> "_" <> baseFeature
-    , colData = v }
- where n      = maybe 0 colSize $ listToMaybe features
-       vsum i = sum $ (V.! i) . colData <$> features
-       v      = V.generate n (\i -> 1.0 - vsum i) :: Vector Double
-
-featureColumns :: Feature a -> [Column a]
-featureColumns (SingleCol col)               = [col]
-featureColumns (MultiCol Categorical { .. }) = features
-
 -- inputVectors :: ModelInput -> [Vector a]
 -- inputVectors ModelInput { .. } = undefined
-
-colSize :: Column a -> Int
-colSize = V.length . colData
 
 -- split the training input so that we can use one piece as training, the
 -- other part for validation.
@@ -139,42 +94,6 @@ splitVector idxs v =
             step 0 0 $ zip idxs [0 .. n-1]
             (,) <$> V.freeze lefts' <*> V.freeze rights'
 
-extractFeatureVector :: DataSet -> Text -> Maybe (Feature Double)
-extractFeatureVector DataSet { .. } colName = createFeature colName <$> colByName colName
-
-createFeature :: Text -> [Text] -> Feature Double
-createFeature name []     = SingleCol $ Column name V.empty
-createFeature name xs@(x:_) =
-    let parseFirst = readEither x :: Either Text Double
-    in case parseFirst of
-        Right _ -> SingleCol $ createSingleCol name xs
-        Left _  -> MultiCol  $ createCategorical name xs
-
-replaceNAs :: Vector Double -> Vector Double
-replaceNAs xs =
-    let cleanVals = V.filter (not . isNaN) xs
-        mean      = V.sum cleanVals / fromIntegral (V.length cleanVals)
-    in V.map (\x -> if isNaN x then mean else x) xs
-
-createSingleCol :: Text -> [Text] -> Column Double
-createSingleCol colName colData =
-    let fallback = sqrt $ -1
-    in Column colName $ replaceNAs $ V.fromList $
-            either (const fallback) identity . readEither <$> colData
-
-createCategorical :: Text -> [Text] -> Categorical Double
-createCategorical className colData =
-    let klasses                    = -- debugShow ("klasses for " <> className) $
-            sort . ordNub $ colData
-        Just (baseFeature, others) = uncons klasses
-        features                   = fmap createKlassVector others
-        createKlassVector kl       = Column (className <> "_" <> kl) $ V.fromList $
-            fmap (\d -> if d == kl then 1.0 else 0.0) colData
-    in  Categorical { .. }
-
-extractFeatureVectors :: DataSet -> [Text] -> Maybe [Feature Double]
-extractFeatureVectors ds colNames = traverse (extractFeatureVector ds) colNames
-
 extractModelInput :: Text -> [Text] -> DataSet -> Maybe ModelInput
 extractModelInput responseName names ds@DataSet { .. }  = do
     featureCols <- extractFeatureVectors ds names
@@ -184,4 +103,10 @@ extractModelInput responseName names ds@DataSet { .. }  = do
         , miFeatures = featureCols
         , miResponse = responseCol
         , miRows     = featureSize responseCol }
+
+extractFeatureVector :: DataSet -> Text -> Maybe (Feature Double)
+extractFeatureVector DataSet { .. } colName = createFeature colName <$> colByName colName
+
+extractFeatureVectors :: DataSet -> [Text] -> Maybe [Feature Double]
+extractFeatureVectors ds colNames = traverse (extractFeatureVector ds) colNames
 

@@ -5,8 +5,7 @@ module ML.DataSet.CSVSuite where
 
 
 import           ISL.DataSet.CSV (createDataSet, createDataSet')
-import           ISL.Model (featureName)
-import           ML.DataSet (DataSet'(..))
+import           ML.DataSet (DataSet'(..), featureName)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 

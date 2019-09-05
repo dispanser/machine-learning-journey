@@ -17,16 +17,6 @@ import           Data.Text (Text)
 class Summary a where
   summary :: a -> [Text]
 
--- data DataSet' = DataSet'
---     { dsName'    :: Text
---     , dsFeatures :: [Feature Double] -- hm, there is some duplication
---     , dsColumns' :: [Column Double]
---     , dsNumRows' :: Int
---     , dsNumCols' :: Int
---     , colByName' :: Text -> Maybe (Column Double)
---     , featByName :: Text -> Maybe (Feature Double)
---     }
-
 data DataSet = DataSet
     { dsName    :: Text
     , dsColumns :: [Text]

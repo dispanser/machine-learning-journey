@@ -5,7 +5,9 @@ module ISL.LinearRegression where
 
 import           ISL.DataSet (Summary(..))
 import qualified ISL.Model as M
-import           ISL.Model (ModelInput(..), Feature(..), Column(..))
+import           ML.DataSet (Feature(..), Column(..))
+import qualified ML.DataSet as DS
+import           ISL.Model (ModelInput(..))
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Formatting as F
@@ -34,7 +36,7 @@ data LinearRegression = LinearRegression
 
 instance M.Predictor LinearRegression where
   predict LinearRegression { .. } xss =
-      let input = VS.convert <$> concatMap M.featureVectors xss
+      let input = VS.convert <$> concatMap DS.featureVectors xss
           olsR  = predictLinearRegression lrCoefficients input
       in SingleCol . Column lrResponseName . VS.convert $ olsR
 
@@ -81,8 +83,8 @@ instance M.ModelFit LinearRegression where
 linearRegression :: ModelInput -> LinearRegression
 linearRegression ModelInput { .. } =
     let y                = VS.convert $ fromMaybe V.empty $ listToMaybe $
-                               M.featureVectors miResponse
-        xs               = VS.convert <$> concatMap M.featureVectors miFeatures
+                               DS.featureVectors miResponse
+        xs               = VS.convert <$> concatMap DS.featureVectors miFeatures
         n                = VS.length y
         xX               = prepareMatrix n xs
         p                = M.cols xX - 1
@@ -98,8 +100,8 @@ linearRegression ModelInput { .. } =
         lrRse            = sqrt lrMse
         lrStandardErrors = M.takeDiag $ M.scale lrMse (M.inv . M.unSym $ M.mTm xX) ** 0.5
         lrR2             = 1 - lrRss/lrTss
-        lrResponseName   = M.featureName miResponse
-        lrFeatureNames   = concatMap M.columnNames miFeatures
+        lrResponseName   = DS.featureName miResponse
+        lrFeatureNames   = concatMap DS.columnNames miFeatures
     in  LinearRegression { .. }
 
 

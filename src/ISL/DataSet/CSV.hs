@@ -11,7 +11,7 @@ import           Data.Vector (Vector)
 import qualified Data.Vector as V
 import           ML.DataSet (DataSet'(..), createFromFeatures)
 import           ISL.DataSet (DataSet(..))
-import           ISL.Model (Feature(..), Column(..), Categorical(..),
+import           ML.DataSet (Feature(..), Column(..), Categorical(..),
                         featureName, featureSize, createFeature)
 import           Text.CSV (parseCSVFromFile, Record, printCSV)
 
