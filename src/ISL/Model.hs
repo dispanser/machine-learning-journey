@@ -42,8 +42,8 @@ data ModelInput = ModelInput
     , miResponse :: Feature Double
     , miRows     :: Int } deriving (Show, Eq)
 
-modelSpecByFeatureNames :: FeatureSpace -> Text -> [Text] -> Either Text ModelSpec
-modelSpecByFeatureNames FeatureSpace {..} responseName featureNames = do
+buildModelSpec :: FeatureSpace -> Text -> [Text] -> Either Text ModelSpec
+buildModelSpec FeatureSpace {..} responseName featureNames = do
     response <- maybe (Left $ "response named '" <> responseName <> "' not found")
         Right $ findFeature responseName
     features <- forM featureNames (\fn -> maybe (Left $ "feature named '" <> fn <> "' not found")

@@ -14,9 +14,6 @@ module ISL.DataSet where
 
 import           Data.Text (Text)
 
-class Summary a where
-  summary :: a -> [Text]
-
 data DataSet = DataSet
     { dsName    :: Text
     , dsColumns :: [Text]

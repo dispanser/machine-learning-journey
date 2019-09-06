@@ -19,6 +19,9 @@ import qualified Data.Text as T
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
 
+class Summary a where
+  summary :: a -> [Text]
+
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
 data DataSet' = DataSet'
@@ -38,9 +41,8 @@ data DataSet' = DataSet'
 -- result for variable selection algorithm, etc).
 data FeatureSpace = FeatureSpace
     { findFeature :: Text -> Maybe FeatureSpec
-    , knownFeats  :: [Text]
+    , knownFeats  :: [FeatureSpec]
     }
-
 
 -- TODO: this is a subset of the information that's currently stored
 -- as part of the Feature itself.
@@ -85,6 +87,17 @@ createFromFeatures name feats =
         featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
     in DataSet' { .. }
 
+-- TODO: Either Text ? notion of missing / spec mismatch?
+extractDataColumns :: DataSet' -> FeatureSpace -> [Column Double]
+extractDataColumns ds fs = concatMap (featureVectors' ds) $ knownFeats fs
+
+featureVectors' :: DataSet' -> FeatureSpec -> [Column Double]
+featureVectors' ds FeatureSpec { .. } =
+    if null additionalColumns
+       then fromMaybe [] $ (:[]) <$> (colByName' ds column)
+       else let colNames = ((featName <>) "_" <>) <$> additionalColumns
+            in fromMaybe [] $ sequence $ colByName' ds <$> colNames
+
 createFeatureSpec :: Feature a -> FeatureSpec
 createFeatureSpec (MultiCol Categorical { .. }) = FeatureSpec
     { featName          = className
@@ -100,7 +113,7 @@ createFeatureSpec (SingleCol col) = FeatureSpec
 createFeatureSpace :: [FeatureSpec] -> FeatureSpace
 createFeatureSpace fs =
     let m = M.fromList $ zip (featName <$> fs) fs
-    in  FeatureSpace (flip M.lookup m) (M.keys m)
+    in  FeatureSpace (flip M.lookup m) (snd <$> M.toList m)
 
 -- split a text value into a prefix before _, considered the feature name,
 -- and the remaining text, considered the name of the class of the categorical

@@ -42,10 +42,18 @@ spec_DataSetFromFeatures = do
             -- that at least the underlying feature exists and is categorical.
             colByName' "col3_green" `shouldBe` Just (Column "col3_green" $ V.replicate 3 0.0)
         it "defines the feature space covered" $ do
-            let expected = createFeatureSpace [ FeatureSpec "col1" "col1" []
-                                        , FeatureSpec "col2" "col2" []
-                                        , FeatureSpec "col3" "blue" ["red", "yellow"] ]
-            (knownFeats featureSpace) `shouldBe` ["col1", "col2", "col3"]
+            (featName <$> knownFeats featureSpace) `shouldBe` ["col1", "col2", "col3"]
+
+spec_extractDataColumns :: Spec
+spec_extractDataColumns = do
+    it "extracting a feature space from a dataset" $ do
+        let dataset = createFromFeatures "hspec" [fDouble, fNAs, fCat]
+            fs      = featureSpace dataset
+        extractDataColumns dataset fs `shouldBe`
+            [ Column "col1" $ V.fromList [1.0, 2.0, 3.0]
+            , Column "col2" $ V.fromList [1.0, 2.0, 3.0]
+            , Column "col3_red" $  V.fromList [1.0, 0.0, 0.0]
+            , Column "col3_yellow" $ V.fromList [0.0, 1.0, 0.0]]
 
 spec_CreateFeature :: Spec
 spec_CreateFeature = do

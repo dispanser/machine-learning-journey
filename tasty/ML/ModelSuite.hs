@@ -17,14 +17,14 @@ spec_modelSpec = do
 
     describe "building model specification from feature names " $ do
         it "should construct a model spec for valid column names" $ do
-            let ms  = modelSpecByFeatureNames fs "col1" ["col2", "col3"]
+            let ms  = buildModelSpec fs "col1" ["col2", "col3"]
             response  <$> ms `shouldBe` Right f1
-            (knownFeats . features') <$> ms `shouldBe` Right ["col2", "col3"]
+            (knownFeats . features') <$> ms `shouldBe` Right [f2, f3]
         it "should fail when the response variable is missing" $ do
-            let ms  = modelSpecByFeatureNames fs "colX" ["col2", "col3"]
+            let ms  = buildModelSpec fs "colX" ["col2", "col3"]
             leftToMaybe ms `shouldBe` Just  "response named 'colX' not found"
         it "should fail when a feature variable is missing" $ do
-            let ms  = modelSpecByFeatureNames fs "col1" ["col2", "colX"]
+            let ms  = buildModelSpec fs "col1" ["col2", "colX"]
             leftToMaybe ms `shouldBe` Just  "feature named 'colX' not found"
 
 

@@ -6,7 +6,7 @@ module Kaggle.HousingExampleCompetition where
 
 import           Control.Monad (mapM_)
 import           ISL.DataSet.CSV (readCsvWithHeader, writeCsv)
-import           ISL.DataSet (summary)
+import           ML.DataSet (summary)
 import qualified ISL.Model     as M
 import qualified ISL.Model.Validation as MV
 import qualified ISL.LinearRegression as OLS
