@@ -34,16 +34,6 @@ data ModelSpec = ModelSpec
     { features' :: FeatureSpace
     , response  :: FeatureSpec }
 
--- TODO: better name, please
--- represents the input to a fit procedure: a data set and the
--- names of the features, the name of the response etc.
--- at this stage, the inputs are verified (in theory)
-data ModelInput = ModelInput
-    { miName     :: !Text
-    , miFeatures :: ![Feature Double]
-    , miResponse :: Feature Double
-    , miRows     :: Int } deriving (Show, Eq)
-
 buildModelSpec :: FeatureSpace -> Text -> [Text] -> Either Text ModelSpec
 buildModelSpec FeatureSpace {..} responseName featureNames = do
     response <- maybe (Left $ "response named '" <> responseName <> "' not found")
@@ -58,28 +48,6 @@ extractResponseVector :: DataSet' -> ModelSpec -> Column Double
 extractResponseVector ds ms = RU.head $ DS.featureVectors' ds (response ms)
 -- split the training input so that we can use one piece as training, the
 -- other part for validation.
-splitModelInput :: [Bool] -> ModelInput -> (ModelInput, ModelInput)
-splitModelInput testRows modelInput = (train, test)
- where (trainResponse, testResponse) = splitFeature testRows $ miResponse modelInput
-       (trainFeatures, testFeatures) = unzip $ splitFeature testRows <$> miFeatures modelInput
-       train = ModelInput
-           { miName     = miName modelInput <> "_train"
-           , miFeatures = trainFeatures
-           , miResponse = trainResponse
-           , miRows     = DS.featureSize trainResponse }
-       test  = ModelInput
-           { miName     = miName modelInput <> "_test"
-           , miFeatures = testFeatures
-           , miResponse = testResponse
-           , miRows     = DS.featureSize testResponse }
-
-splitFeature :: [Bool] -> Feature a -> (Feature a, Feature a)
-splitFeature idxs (SingleCol Column { .. }) =
-    let (leftV, rightV) = splitVector idxs colData
-    in (SingleCol (Column colName leftV), SingleCol (Column colName rightV))
-splitFeature idxs (MultiCol Categorical { .. }) =
-    let (leftF, rightF) = unzip $ splitColumn idxs <$> features
-    in (MultiCol (Categorical className baseFeature leftF), MultiCol (Categorical className baseFeature rightF))
 
 splitColumn :: [Bool] -> Column a -> (Column a, Column a)
 splitColumn idxs Column { .. } =
@@ -113,20 +81,4 @@ splitVector idxs v =
                        else VM.write rights' r (v ! i) >> step l (r+1) ps
             step 0 0 $ zip idxs [0 .. n-1]
             (,) <$> V.freeze lefts' <*> V.freeze rights'
-
-extractModelInput :: Text -> [Text] -> DataSet -> Maybe ModelInput
-extractModelInput responseName names ds@DataSet { .. }  = do
-    featureCols <- extractFeatureVectors ds names
-    responseCol <- extractFeatureVector  ds responseName
-    return ModelInput
-        { miName     = dsName
-        , miFeatures = featureCols
-        , miResponse = responseCol
-        , miRows     = DS.featureSize responseCol }
-
-extractFeatureVector :: DataSet -> Text -> Maybe (Feature Double)
-extractFeatureVector DataSet { .. } colName = DS.createFeature colName <$> colByName colName
-
-extractFeatureVectors :: DataSet -> [Text] -> Maybe [Feature Double]
-extractFeatureVectors ds colNames = traverse (extractFeatureVector ds) colNames
 
