@@ -9,9 +9,7 @@ module ISL.Model where
 import qualified Relude.Unsafe as RU
 import qualified ML.DataSet as DS
 import           ML.DataSet (DataSet'(..), Feature(..), Column(..)
-                            , FeatureSpace(..)
-                            , FeatureSpec(..)
-                            )
+                            , FeatureSpace(..) , FeatureSpec(..))
 import           Data.Text (Text)
 
 -- initial stub type for prediction result: the column vector of response
@@ -33,9 +31,10 @@ buildModelSpec :: FeatureSpace -> Text -> [Text] -> Either Text ModelSpec
 buildModelSpec FeatureSpace {..} responseName featureNames = do
     response <- maybe (Left $ "response named '" <> responseName <> "' not found")
         Right $ findFeature responseName
-    features <- forM featureNames (\fn -> maybe (Left $ "feature named '" <> fn <> "' not found")
+    features <- forM featureNames (\fn ->
+        maybe (Left $ "feature named '" <> fn <> "' not found")
                    Right $ findFeature fn)
-    return $ ModelSpec
+    return ModelSpec
         { features' = DS.createFeatureSpace features
         , response  = response }
 
