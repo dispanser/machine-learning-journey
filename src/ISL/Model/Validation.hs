@@ -1,7 +1,8 @@
 module ISL.Model.Validation
     ( kFoldSplit
     , validationSetSplit
-    -- , validateModel
+    , validateModel
+    , negateRowSelector
     , kFoldModel)
 
      where
@@ -26,23 +27,26 @@ kFoldSplit seed n k =
     let rg = Rand.mkStdGen seed
     in take n $ Rand.randomRs (0, k-1) rg
 
-rowSelectorFromList :: [Bool] -> RowSelector a
+rowSelectorFromList :: [Bool] -> RowSelector
 rowSelectorFromList xs =
     let v = V.fromList xs
     in (v V.!)
 
-negateRowSelector :: RowSelector a -> RowSelector a
+negateRowSelector :: RowSelector -> RowSelector
 negateRowSelector rs = \i -> not (rs i)
+
 -- fit a model based on the provided input, splitting the data into training and
 -- validation set based on the provided seed. Note: split is 50 / 50.
--- validateModel :: M.Predictor a => (M.ModelInput -> a) -> Int -> M.ModelInput -> Double
--- validateModel modelFit seed mi =
---     let trainRows             = validationSetSplit seed $ M.miRows mi
---         (trainData, testData) = M.splitModelInput trainRows mi
---     in runWithTestSet modelFit trainData testData
+validateModel :: M.Predictor a =>
+    (DataSet' -> M.ModelSpec -> RowSelector -> a) ->
+        Int -> DataSet' -> M.ModelSpec -> Double
+validateModel modelFit seed ds ms =
+    let n         = DS.dsNumRows' ds
+        trainRows = rowSelectorFromList $ validationSetSplit seed n
+    in runWithTestSet modelFit ds ms trainRows
 
 kFoldModel :: M.Predictor a =>
-    (DataSet' -> M.ModelSpec -> RowSelector Double -> a) ->
+    (DataSet' -> M.ModelSpec -> RowSelector -> a) ->
         Int -> Int -> DataSet' -> M.ModelSpec -> Double
 kFoldModel fit seed k ds ms =
     let n          = DS.dsNumRows' ds
@@ -51,12 +55,11 @@ kFoldModel fit seed k ds ms =
                      in runWithTestSet fit ds ms trainRowS
     in sum (fitFold <$> [0..k-1]) / fromIntegral k
 
--- row selector is the one that actively selects the rows used for
--- training the model. The negation yields the rows that are used
--- for computing the prediction error
+-- row selector selects the rows used for training the model. The negation
+-- yields the rows that are used for computing the prediction error
 runWithTestSet :: M.Predictor a =>
-    (DataSet' -> M.ModelSpec -> RowSelector Double -> a) ->
-        DataSet' -> M.ModelSpec -> RowSelector Double -> Double
+    (DataSet' -> M.ModelSpec -> RowSelector -> a) ->
+        DataSet' -> M.ModelSpec -> RowSelector -> Double
 runWithTestSet fit ds ms rs =
     let mFit         = fit ds ms rs
         testRS       = negateRowSelector rs

@@ -42,8 +42,7 @@ instance M.Predictor LinearRegression where
           olsR  = predictLinearRegression lrCoefficients input
       in SingleCol . Column lrResponseName . VS.convert $ olsR
   predict' LinearRegression { .. } ds rs =
-      let featureCols = DS.filterDataColumn rs <$> (DS.extractDataColumns ds $
-            features' lrModelSpec)
+      let featureCols = DS.extractDataColumns ds $ features' lrModelSpec
           input = VS.convert . colData . DS.filterDataColumn rs <$> featureCols
           olsR  = predictLinearRegression lrCoefficients input
       in SingleCol . Column lrResponseName . VS.convert $ olsR
@@ -92,7 +91,7 @@ instance M.ModelFit LinearRegression where
 linearRegression :: Column Double -> [Column Double] -> ModelSpec -> LinearRegression
 linearRegression response inputCols ms =
     let y  = VS.convert . colData $ response
-        n  = debugShow "training set size" $ VS.length y
+        n  = VS.length y
         xs = VS.convert . colData <$> inputCols
         xX = prepareMatrix n xs
         p  = pred $ M.cols xX
@@ -122,7 +121,7 @@ linearRegression' ds ms = linearRegression responseCols featureCols ms
        featureCols  = DS.extractDataColumns ds $ features' ms
 
 linearRegression'' :: DataSet' -> ModelSpec ->
-    DS.RowSelector Double -> LinearRegression
+    DS.RowSelector -> LinearRegression
 linearRegression'' ds ms rs = linearRegression responseCols featureCols ms
  where responseCols = DS.filterDataColumn rs $ RU.head $
                 DS.featureVectors' ds $ response ms
@@ -131,7 +130,7 @@ linearRegression'' ds ms rs = linearRegression responseCols featureCols ms
 
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =
-    let n  = debugShow "prediction set size" $ fromMaybe 0 $ VS.length . fst <$> uncons xs
+    let n  = fromMaybe 0 $ VS.length . fst <$> uncons xs
         xX = prepareMatrix n xs
     in if M.cols xX == VS.length bs
           then xX #> bs

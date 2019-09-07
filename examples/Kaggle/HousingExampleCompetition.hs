@@ -29,12 +29,11 @@ main = do
 
     mapM_ print $ DS.summary lrFit
 
-    -- let valMSE = MV.validateModel OLS.linearRegression 1 baseModel
-    -- putStrLn $ "validation set MSE: " <> show valMSE
+    let valMSE = MV.validateModel OLS.linearRegression'' 1 housingDS modelSpec
+    putStrLn $ "validation set MSE: " <> show valMSE
 
     let kFoldMSE = MV.kFoldModel OLS.linearRegression'' 1 5 housingDS modelSpec
     putStrLn $ "5-fold cross validation MSE: " <> show kFoldMSE
-
 
     let Just idCol = (DS.colByName' housingTestDS) "Id"
         prediction = DS.featureColumn $ M.predict lrFit housingTestDS

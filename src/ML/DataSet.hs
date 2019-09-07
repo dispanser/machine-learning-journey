@@ -23,7 +23,7 @@ class Summary a where
   summary :: a -> [Text]
 
 -- select the subset of rows that are
-type RowSelector a = Int -> Bool
+type RowSelector = Int -> Bool
 
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
@@ -95,7 +95,7 @@ createFromFeatures name feats =
 extractDataColumns :: DataSet' -> FeatureSpace -> [Column Double]
 extractDataColumns ds fs = concatMap (featureVectors' ds) $ knownFeats fs
 
-filterDataColumn :: RowSelector a -> Column a -> Column a
+filterDataColumn :: RowSelector -> Column a -> Column a
 filterDataColumn rs (Column name cData) =
     Column name $ V.ifilter (\i _ -> rs i) cData
 

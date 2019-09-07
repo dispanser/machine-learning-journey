@@ -9,10 +9,9 @@ module ISL.Model where
 import qualified Relude.Unsafe as RU
 import qualified ML.DataSet as DS
 import           ML.DataSet (DataSet'(..), Feature(..), Column(..)
-                            , Categorical(..), FeatureSpace(..)
+                            , FeatureSpace(..)
                             , FeatureSpec(..)
                             )
-import           ISL.DataSet (DataSet(..))
 import           Control.Monad.ST (runST, ST)
 import           Data.Vector (Vector, (!))
 import qualified Data.Vector as V
@@ -23,12 +22,12 @@ import           Data.Text (Text)
 type Prediction = Feature Double
 
 class Predictor a where
-  predict  :: a -> DataSet'                          -> Prediction
-  predict' :: a -> DataSet' -> DS.RowSelector Double -> Prediction
+  predict  :: a -> DataSet'                   -> Prediction
+  predict' :: a -> DataSet' -> DS.RowSelector -> Prediction
 
 class ModelFit a where
-  fit  :: DataSet' -> ModelSpec                          -> a
-  fit' :: DataSet' -> ModelSpec -> DS.RowSelector Double -> a
+  fit  :: DataSet' -> ModelSpec                   -> a
+  fit' :: DataSet' -> ModelSpec -> DS.RowSelector -> a
 
 data ModelSpec = ModelSpec
     { features' :: FeatureSpace

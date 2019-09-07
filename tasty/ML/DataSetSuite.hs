@@ -60,7 +60,7 @@ spec_filterRows = do
     it "filters to keep even rows" $ do
         let c = Column "col1" $ V.fromList [1.0, 2.0, 3.0, 4.0, 5.0]
         filterDataColumn even c `shouldBe`
-            (Column "col1" $ V.fromList [1.0, 3.0, 5.0])
+            (Column "col1" $ V.fromList [1.0, 3.0, 5.0 :: Double])
 
 spec_CreateFeature :: Spec
 spec_CreateFeature = do
