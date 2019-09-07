@@ -147,6 +147,11 @@ featureVector (MultiCol Categorical { .. }) =
     error $ "trying to extract a single feature from categorical column '"
         <> className <> "'"
 
+featureColumn :: Feature a -> Column a
+featureColumn (SingleCol c)     = c
+featureColumn (MultiCol Categorical { .. }) =
+    error $ "trying to extract a single feature from categorical column '"
+        <> className <> "'"
 baselineColumn :: Text -> Categorical Double -> Column Double
 baselineColumn fName Categorical { .. } = Column
     { colName = fName <> "_" <> baseFeature

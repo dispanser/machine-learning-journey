@@ -25,7 +25,6 @@ class Predictor a where
   predict' :: a -> DataSet'         -> Prediction
 
 class ModelFit a where
-  fit  :: ModelInput -> a
   fit' :: DataSet' -> ModelSpec -> a
 
 data ModelSpec = ModelSpec
@@ -84,11 +83,12 @@ splitColumn idxs Column { .. } =
 
 -- this actually prompted for a call for help on r/haskell:
 -- https://www.reddit.com/r/haskell/comments/ckba3b/monthly_hask_anything_august_2019/eybwyig/
--- the problem is that runST introduces an s (for ST s), but the step function introduces
--- another, incompatible one. So the VM.write call wouldn't compile. Solution is to introduce
--- ScopedTypeVariables, have an explicit type signature for the runST (go), bind some s using
--- forall, and then re-using that s in the type signature of the step function.
--- after all these changes, it became possible drop the type signature for step:
+-- the problem is that runST introduces an s (for ST s), but the step function
+-- introduces another, incompatible one. So the VM.write call wouldn't compile.
+-- Solution is to introduce ScopedTypeVariables, have an explicit type
+-- signature for the runST (go), bind some s using forall, and then re-using
+-- that s in the type signature of the step function.  after all these changes,
+-- it became possible drop the type signature for step:
 splitVector :: forall a . [Bool] -> Vector a -> (Vector a, Vector a)
 splitVector idxs v =
     runST go

@@ -6,7 +6,7 @@ module ISL.LinearRegression where
 import qualified ISL.Model as M
 import           ML.DataSet (Feature(..), Column(..), DataSet'(..))
 import qualified ML.DataSet as DS
-import           ISL.Model (ModelInput(..), ModelSpec(..))
+import           ISL.Model (ModelSpec(..))
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Formatting as F
@@ -31,7 +31,8 @@ data LinearRegression = LinearRegression
     , lrDF             :: Int
     , n                :: Int
     , p                :: Int
-    } deriving (Show, Eq, Ord)
+    , lrModelSpec      :: ModelSpec
+    }
 
 instance M.Predictor LinearRegression where
   predict LinearRegression { .. } xss =
@@ -46,7 +47,11 @@ instance M.Predictor LinearRegression where
   -- however, this problem should not be solved in the OLS module, instead
   -- it's something that applies to all kinds of algorithms, including
   -- classification and all the fancy stuff
-  -- predict' LinearRegression { .. } _ds = undefined
+  predict' LinearRegression { .. } ds =
+      let featureCols = DS.extractDataColumns ds $ features' lrModelSpec
+          input = VS.convert . colData <$> featureCols
+          olsR  = predictLinearRegression lrCoefficients input
+      in SingleCol . Column lrResponseName . VS.convert $ olsR
 
 instance DS.Summary LinearRegression where
   summary = summarizeLinearRegression
@@ -86,33 +91,7 @@ formatCoefficientInfo df name x err =
         (Scientific.fromFloatDigits err) tStat pV
 
 instance M.ModelFit LinearRegression where
-  fit  = linearRegression
   fit' = linearRegression'
-
-linearRegression :: ModelInput -> LinearRegression
-linearRegression ModelInput { .. } =
-    let y                = VS.convert $ fromMaybe V.empty $ listToMaybe $
-                               DS.featureVectors miResponse
-        xs               = VS.convert <$> concatMap DS.featureVectors miFeatures
-        n                = VS.length y
-        xX               = prepareMatrix n xs
-        p                = M.cols xX - 1
-        lrDF             = n - p - 1
-        -- TODO: ugly as hell
-        lrCoefficients   = fromMaybe VS.empty $ fst <$> (uncons $ M.toColumns $ M.linearSolveLS xX (M.fromColumns [y]))
-        residuals        = y - predictLinearRegression lrCoefficients xs
-        lrRss            = residuals <.> residuals
-        yMean            = mean y
-        yDelta           = y - (VS.replicate n yMean)
-        lrTss            = yDelta <.> yDelta
-        lrMse            = lrRss / fromIntegral (n - p - 1)
-        lrRse            = sqrt lrMse
-        lrStandardErrors = M.takeDiag $ M.scale lrMse (M.inv . M.unSym $ M.mTm xX) ** 0.5
-        lrR2             = 1 - lrRss/lrTss
-        lrResponseName   = DS.featureName miResponse
-        lrFeatureNames   = concatMap DS.columnNames miFeatures
-    in  LinearRegression { .. }
-
 
 linearRegression' :: DataSet' -> ModelSpec -> LinearRegression
 linearRegression' ds ms =
@@ -138,6 +117,7 @@ linearRegression' ds ms =
         lrR2             = 1 - lrRss/lrTss
         lrResponseName   = DS.featName . response $ ms
         lrFeatureNames   = colName <$> featureCols
+        lrModelSpec      = ms
     in  LinearRegression { .. }
 
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
