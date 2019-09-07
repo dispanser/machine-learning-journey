@@ -22,6 +22,9 @@ import qualified Data.Vector as V
 class Summary a where
   summary :: a -> [Text]
 
+-- select the subset of rows that are
+type RowSelector a = Int -> Bool
+
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
 data DataSet' = DataSet'
@@ -81,7 +84,8 @@ createFromFeatures name feats =
                 MultiCol  c@Categorical { .. } ->
                     if baseFeature == klass
                        then return $ baselineColumn feat c
-                       else return $ Column (feat <> "_" <> klass) $ V.replicate dsNumRows' 0.0
+                       else return $ Column (feat <> "_" <> klass) $
+                           V.replicate dsNumRows' 0.0
         findMissingClass _ = Nothing
         colByName' c = whenNothing (M.lookup c columnIndex) (findMissingClass c)
         featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
@@ -90,6 +94,10 @@ createFromFeatures name feats =
 -- TODO: Either Text ? notion of missing / spec mismatch?
 extractDataColumns :: DataSet' -> FeatureSpace -> [Column Double]
 extractDataColumns ds fs = concatMap (featureVectors' ds) $ knownFeats fs
+
+filterDataColumn :: RowSelector a -> Column a -> Column a
+filterDataColumn rs (Column name cData) =
+    Column name $ V.ifilter (\i _ -> rs i) cData
 
 featureVectors' :: DataSet' -> FeatureSpec -> [Column Double]
 featureVectors' ds FeatureSpec { .. } =

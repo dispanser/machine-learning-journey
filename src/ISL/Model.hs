@@ -6,10 +6,12 @@
 
 module ISL.Model where
 
+import qualified Relude.Unsafe as RU
+import qualified ML.DataSet as DS
 import           ML.DataSet (DataSet'(..), Feature(..), Column(..)
                             , Categorical(..), FeatureSpace(..)
-                            , FeatureSpec(..), featureSize
-                            , createFeature, createFeatureSpace)
+                            , FeatureSpec(..)
+                            )
 import           ISL.DataSet (DataSet(..))
 import           Control.Monad.ST (runST, ST)
 import           Data.Vector (Vector, (!))
@@ -21,11 +23,12 @@ import           Data.Text (Text)
 type Prediction = Feature Double
 
 class Predictor a where
-  predict  :: a -> [Feature Double] -> Feature Double
-  predict' :: a -> DataSet'         -> Prediction
+  predict  :: a -> DataSet'                          -> Prediction
+  predict' :: a -> DataSet' -> DS.RowSelector Double -> Prediction
 
 class ModelFit a where
-  fit' :: DataSet' -> ModelSpec -> a
+  fit  :: DataSet' -> ModelSpec                          -> a
+  fit' :: DataSet' -> ModelSpec -> DS.RowSelector Double -> a
 
 data ModelSpec = ModelSpec
     { features' :: FeatureSpace
@@ -48,9 +51,11 @@ buildModelSpec FeatureSpace {..} responseName featureNames = do
     features <- forM featureNames (\fn -> maybe (Left $ "feature named '" <> fn <> "' not found")
                    Right $ findFeature fn)
     return $ ModelSpec
-        { features' = createFeatureSpace features
+        { features' = DS.createFeatureSpace features
         , response  = response }
 
+extractResponseVector :: DataSet' -> ModelSpec -> Column Double
+extractResponseVector ds ms = RU.head $ DS.featureVectors' ds (response ms)
 -- split the training input so that we can use one piece as training, the
 -- other part for validation.
 splitModelInput :: [Bool] -> ModelInput -> (ModelInput, ModelInput)
@@ -61,12 +66,12 @@ splitModelInput testRows modelInput = (train, test)
            { miName     = miName modelInput <> "_train"
            , miFeatures = trainFeatures
            , miResponse = trainResponse
-           , miRows     = featureSize trainResponse }
+           , miRows     = DS.featureSize trainResponse }
        test  = ModelInput
            { miName     = miName modelInput <> "_test"
            , miFeatures = testFeatures
            , miResponse = testResponse
-           , miRows     = featureSize testResponse }
+           , miRows     = DS.featureSize testResponse }
 
 splitFeature :: [Bool] -> Feature a -> (Feature a, Feature a)
 splitFeature idxs (SingleCol Column { .. }) =
@@ -117,10 +122,10 @@ extractModelInput responseName names ds@DataSet { .. }  = do
         { miName     = dsName
         , miFeatures = featureCols
         , miResponse = responseCol
-        , miRows     = featureSize responseCol }
+        , miRows     = DS.featureSize responseCol }
 
 extractFeatureVector :: DataSet -> Text -> Maybe (Feature Double)
-extractFeatureVector DataSet { .. } colName = createFeature colName <$> colByName colName
+extractFeatureVector DataSet { .. } colName = DS.createFeature colName <$> colByName colName
 
 extractFeatureVectors :: DataSet -> [Text] -> Maybe [Feature Double]
 extractFeatureVectors ds colNames = traverse (extractFeatureVector ds) colNames

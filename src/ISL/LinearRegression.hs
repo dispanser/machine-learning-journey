@@ -3,6 +3,7 @@
 
 module ISL.LinearRegression where
 
+import qualified Relude.Unsafe as RU
 import qualified ISL.Model as M
 import           ML.DataSet (Feature(..), Column(..), DataSet'(..))
 import qualified ML.DataSet as DS
@@ -35,21 +36,15 @@ data LinearRegression = LinearRegression
     }
 
 instance M.Predictor LinearRegression where
-  predict LinearRegression { .. } xss =
-      let input = VS.convert <$> concatMap DS.featureVectors xss
-          olsR  = predictLinearRegression lrCoefficients input
-      in SingleCol . Column lrResponseName . VS.convert $ olsR
-  -- we need to make sure that the data set passed in is compatible with
-  -- the dataset used during training, or put differently, it is able to
-  -- provide all the columns that we need. The list of features stored in
-  -- the linear regression is a good start, but it's not capable of making
-  -- sure that our baseline feature is the same.
-  -- however, this problem should not be solved in the OLS module, instead
-  -- it's something that applies to all kinds of algorithms, including
-  -- classification and all the fancy stuff
-  predict' LinearRegression { .. } ds =
+  predict LinearRegression { .. } ds =
       let featureCols = DS.extractDataColumns ds $ features' lrModelSpec
           input = VS.convert . colData <$> featureCols
+          olsR  = predictLinearRegression lrCoefficients input
+      in SingleCol . Column lrResponseName . VS.convert $ olsR
+  predict' LinearRegression { .. } ds rs =
+      let featureCols = DS.filterDataColumn rs <$> (DS.extractDataColumns ds $
+            features' lrModelSpec)
+          input = VS.convert . colData . DS.filterDataColumn rs <$> featureCols
           olsR  = predictLinearRegression lrCoefficients input
       in SingleCol . Column lrResponseName . VS.convert $ olsR
 
@@ -91,15 +86,14 @@ formatCoefficientInfo df name x err =
         (Scientific.fromFloatDigits err) tStat pV
 
 instance M.ModelFit LinearRegression where
-  fit' = linearRegression'
+  fit  = linearRegression'
+  fit' = linearRegression''
 
-linearRegression' :: DataSet' -> ModelSpec -> LinearRegression
-linearRegression' ds ms =
-    let responseCols = DS.featureVectors' ds $ response ms
-        y  = VS.convert $ fromMaybe V.empty $ colData <$> listToMaybe responseCols
-        n  = VS.length y
-        featureCols = DS.extractDataColumns ds $ features' ms
-        xs = VS.convert . colData <$> featureCols
+linearRegression :: Column Double -> [Column Double] -> ModelSpec -> LinearRegression
+linearRegression response inputCols ms =
+    let y  = VS.convert . colData $ response
+        n  = debugShow "training set size" $ VS.length y
+        xs = VS.convert . colData <$> inputCols
         xX = prepareMatrix n xs
         p  = pred $ M.cols xX
         lrDF             = n - p - 1
@@ -113,16 +107,31 @@ linearRegression' ds ms =
         lrTss            = yDelta <.> yDelta
         lrMse            = lrRss / fromIntegral (n - p - 1)
         lrRse            = sqrt lrMse
-        lrStandardErrors = M.takeDiag $ M.scale lrMse (M.inv . M.unSym $ M.mTm xX) ** 0.5
+        lrStandardErrors = M.takeDiag $ M.scale lrMse (
+            M.inv . M.unSym $ M.mTm xX) ** 0.5
         lrR2             = 1 - lrRss/lrTss
-        lrResponseName   = DS.featName . response $ ms
-        lrFeatureNames   = colName <$> featureCols
+        lrResponseName   = colName response
+        lrFeatureNames   = colName <$> inputCols
         lrModelSpec      = ms
     in  LinearRegression { .. }
 
+
+linearRegression' :: DataSet' -> ModelSpec -> LinearRegression
+linearRegression' ds ms = linearRegression responseCols featureCols ms
+ where responseCols = RU.head $ DS.featureVectors' ds $ response ms
+       featureCols  = DS.extractDataColumns ds $ features' ms
+
+linearRegression'' :: DataSet' -> ModelSpec ->
+    DS.RowSelector Double -> LinearRegression
+linearRegression'' ds ms rs = linearRegression responseCols featureCols ms
+ where responseCols = DS.filterDataColumn rs $ RU.head $
+                DS.featureVectors' ds $ response ms
+       featureCols  = DS.filterDataColumn rs <$> (DS.extractDataColumns ds $
+           features' ms)
+
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =
-    let n  = fromMaybe 0 $ VS.length . fst <$> uncons xs
+    let n  = debugShow "prediction set size" $ fromMaybe 0 $ VS.length . fst <$> uncons xs
         xX = prepareMatrix n xs
     in if M.cols xX == VS.length bs
           then xX #> bs

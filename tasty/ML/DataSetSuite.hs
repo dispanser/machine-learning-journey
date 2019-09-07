@@ -55,6 +55,13 @@ spec_extractDataColumns = do
             , Column "col3_red" $  V.fromList [1.0, 0.0, 0.0]
             , Column "col3_yellow" $ V.fromList [0.0, 1.0, 0.0]]
 
+spec_filterRows :: Spec
+spec_filterRows = do
+    it "filters to keep even rows" $ do
+        let c = Column "col1" $ V.fromList [1.0, 2.0, 3.0, 4.0, 5.0]
+        filterDataColumn even c `shouldBe`
+            (Column "col1" $ V.fromList [1.0, 3.0, 5.0])
+
 spec_CreateFeature :: Spec
 spec_CreateFeature = do
     it "creates quantitative feature from empty data" $ do
