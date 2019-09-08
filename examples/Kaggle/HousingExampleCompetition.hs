@@ -5,11 +5,11 @@
 module Kaggle.HousingExampleCompetition where
 
 import           Control.Monad (mapM_)
-import           ISL.Dataset.CSV (createDataset, writeCsv)
+import           ML.Dataset.CSV (createDataset, writeCsv)
 import qualified ML.Dataset as DS
-import qualified ISL.Model     as M
-import qualified ISL.Model.Validation     as MV
-import qualified ISL.LinearRegression as OLS
+import qualified ML.Model     as M
+import qualified ML.Model.Validation     as MV
+import qualified ML.LinearRegression as OLS
 
 main :: IO ()
 main = do

@@ -4,7 +4,7 @@
 {-# LANGUAGE PartialTypeSignatures#-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module ISL.Model where
+module ML.Model where
 
 import qualified Relude.Unsafe as RU
 import qualified ML.Dataset as DS

@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module ISL.Dataset.CSV where
+module ML.Dataset.CSV where
 
 import qualified Relude.Unsafe as RU
 import qualified Data.Text as T

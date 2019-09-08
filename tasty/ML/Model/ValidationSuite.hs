@@ -3,7 +3,7 @@
 module ML.Model.ValidationSuite where
 
 import qualified ML.Dataset as DS
-import           ISL.Model.Validation
+import           ML.Model.Validation
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 

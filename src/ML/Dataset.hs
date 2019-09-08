@@ -245,11 +245,22 @@ summarizeColumn Column { .. } =
             " Mean:" % scieF)
             colName (dSc min') (dSc fstQ) (dSc med) (dSc thrdQ)
             (dSc max') (dSc mean)
+
+dSc :: Double -> Scientific.Scientific
 dSc = Scientific.fromFloatDigits
+
+scieF, percF :: F.Format r' (Scientific.Scientific -> r')
 scieF = F.left 11 ' ' %. F.scifmt Scientific.Generic (Just 2)
-textF i = (F.l i ' ' %. F.st)
 percF = F.left 5 ' ' %. F.scifmt Scientific.Generic (Just 2)
+
+textF :: Int -> F.Format r' (Text -> r')
+textF i = (F.l i ' ' %. F.st)
+
+numF :: F.Format r' (Integer -> r')
 numF  = F.l 13 ' ' %. (F.fitRight 13 %. F.sf)
+
+intF :: F.Format r (Integer -> r)
+intF = F.d
 
 vmean :: Vector Double -> Double
 vmean vs = V.sum vs / fromIntegral (V.length vs)
@@ -258,12 +269,12 @@ summarizeCategorical :: Categorical Double -> Text
 summarizeCategorical c@Categorical { .. } =
     let size        = fromIntegral $ columnLength features
         featNameLength = succ $ T.length className
-        baseFeature = baselineColumn className c
+        baseFeat= baselineColumn className c
         fc :: Column Double -> Text
-        fc Column { .. } = F.sformat (textF 5 % ", n=" % F.d % " " % percF % "%")
+        fc Column { .. } = F.sformat (textF 5 % ", n=" % intF % " " % percF % "%")
             (T.drop featNameLength colName)
             (round $ V.sum colData)
             (dSc $ 100.0*(V.sum colData)/size)
 
-        texts = fc <$> baseFeature:features
+        texts = fc <$> baseFeat:features
     in F.sformat (textF 13) className <> (T.intercalate " | " $ texts)

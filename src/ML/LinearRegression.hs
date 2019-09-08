@@ -1,13 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module ISL.LinearRegression where
+module ML.LinearRegression where
 
 import qualified Relude.Unsafe as RU
-import qualified ISL.Model as M
+import qualified ML.Model as M
 import           ML.Dataset (Feature(..), Column(..), Dataset(..))
 import qualified ML.Dataset as DS
-import           ISL.Model (ModelSpec(..))
+import           ML.Model (ModelSpec(..))
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Formatting as F

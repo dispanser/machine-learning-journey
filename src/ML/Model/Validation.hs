@@ -1,4 +1,4 @@
-module ISL.Model.Validation
+module ML.Model.Validation
     ( kFoldSplit
     , validationSetSplit
     , validateModel
@@ -8,7 +8,7 @@ module ISL.Model.Validation
      where
 
 import qualified Relude.Unsafe as RU
-import qualified ISL.Model as M
+import qualified ML.Model as M
 import           ML.Dataset (Dataset, RowSelector)
 import qualified ML.Dataset as DS
 import qualified System.Random as Rand

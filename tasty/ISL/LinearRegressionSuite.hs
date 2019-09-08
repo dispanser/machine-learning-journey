@@ -3,13 +3,13 @@
 
 module ISL.LinearRegressionSuite where
 
-import           ISL.Model       (buildModelSpec)
-import           ISL.Dataset.CSV (createDataset)
+import           ML.Model       (buildModelSpec)
+import           ML.Dataset.CSV (createDataset)
 import           ML.Dataset (Dataset(..))
 import           Control.Monad (zipWithM_)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
-import           ISL.LinearRegression (linearRegression' , LinearRegression (..)
+import           ML.LinearRegression (linearRegression' , LinearRegression (..)
                                       , tStatistics, pValue, fStatistics)
 import qualified Data.Vector.Storable as V
 import           Data.Vector.Storable (Vector)

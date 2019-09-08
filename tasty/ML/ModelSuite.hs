@@ -4,7 +4,7 @@
 module ML.ModelSuite where
 
 import           ML.Dataset
-import           ISL.Model
+import           ML.Model
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 
