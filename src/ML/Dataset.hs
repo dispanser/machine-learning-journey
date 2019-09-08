@@ -261,7 +261,7 @@ numF :: F.Format r' (Integer -> r')
 numF  = F.l 13 ' ' %. (F.fitRight 13 %. F.sf)
 
 intF :: F.Format r (Integer -> r)
-intF = F.d
+intF = F.r 4 ' ' %. F.d
 
 vmean :: VG.Vector v Double => v Double -> Double
 vmean vs = VG.sum vs / fromIntegral (VG.length vs)
@@ -272,7 +272,7 @@ summarizeCategorical c@Categorical { .. } =
         featNameLength = succ $ T.length className
         baseFeat= baselineColumn className c
         fc :: Column Double -> Text
-        fc Column { .. } = F.sformat (textF 5 % ", n=" % intF % " " % percF % "%")
+        fc Column { .. } = F.sformat (textF 5 % ": n=" % intF % " " % percF % "%")
             (T.drop featNameLength colName)
             (round $ V.sum colData)
             (dSc $ 100.0*(V.sum colData)/size)
