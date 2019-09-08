@@ -1,9 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module ML.DataSetSuite where
+module ML.DatasetSuite where
 
-import           ML.DataSet
+import           ML.Dataset
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 import qualified Data.Vector as V
@@ -13,10 +13,16 @@ fDouble       = createFeature "col1" ["1.0", "2.0", "3.0"]
 fNAs          = createFeature "col2" ["1.0", "NA", "3.0"]
 fCat          = createFeature "col3" ["red", "yellow", "blue"]
 
-spec_DataSetFromFeatures :: Spec
-spec_DataSetFromFeatures = do
+spec_replaceNAs :: Spec
+spec_replaceNAs =
+    it "N/A values should be replaced by the variable mean" $ do
+        let vs = V.fromList [-1, sqrt $ -1, 3]
+        replaceNAs vs `shouldBe` V.fromList [-1, 1, 3 :: Double]
+
+spec_DatasetFromFeatures :: Spec
+spec_DatasetFromFeatures = do
     describe "dataset created with createFromFeatures" $ do
-        let DataSet' {..} = createFromFeatures "test01" $ [fDouble, fNAs, fCat]
+        let Dataset {..} = createFromFeatures "test01" $ [fDouble, fNAs, fCat]
             colRed        = Column "col3_red" $ V.fromList [1.0, 0.0, 0.0 ]
             colBlue       = Column "col3_blue" $ V.fromList [0.0, 0.0, 1.0]
         it "should have proper name" $

@@ -9,8 +9,8 @@ module ISL.Model.Validation
 
 import qualified Relude.Unsafe as RU
 import qualified ISL.Model as M
-import           ML.DataSet (DataSet', RowSelector)
-import qualified ML.DataSet as DS
+import           ML.Dataset (Dataset, RowSelector)
+import qualified ML.Dataset as DS
 import qualified System.Random as Rand
 import qualified Data.Vector as V
 
@@ -38,16 +38,16 @@ negateRowSelector rs = \i -> not (rs i)
 -- fit a model based on the provided input, splitting the data into training and
 -- validation set based on the provided seed. Note: split is 50 / 50.
 validateModel :: M.Predictor a =>
-    (DataSet' -> M.ModelSpec -> RowSelector -> a) ->
-        Int -> DataSet' -> M.ModelSpec -> Double
+    (Dataset -> M.ModelSpec -> RowSelector -> a) ->
+        Int -> Dataset -> M.ModelSpec -> Double
 validateModel modelFit seed ds ms =
     let n         = DS.dsNumRows' ds
         trainRows = rowSelectorFromList $ validationSetSplit seed n
     in runWithTestSet modelFit ds ms trainRows
 
 kFoldModel :: M.Predictor a =>
-    (DataSet' -> M.ModelSpec -> RowSelector -> a) ->
-        Int -> Int -> DataSet' -> M.ModelSpec -> Double
+    (Dataset -> M.ModelSpec -> RowSelector -> a) ->
+        Int -> Int -> Dataset -> M.ModelSpec -> Double
 kFoldModel fit seed k ds ms =
     let n          = DS.dsNumRows' ds
         folds      = kFoldSplit seed n k
@@ -58,8 +58,8 @@ kFoldModel fit seed k ds ms =
 -- row selector selects the rows used for training the model. The negation
 -- yields the rows that are used for computing the prediction error
 runWithTestSet :: M.Predictor a =>
-    (DataSet' -> M.ModelSpec -> RowSelector -> a) ->
-        DataSet' -> M.ModelSpec -> RowSelector -> Double
+    (Dataset -> M.ModelSpec -> RowSelector -> a) ->
+        Dataset -> M.ModelSpec -> RowSelector -> Double
 runWithTestSet fit ds ms rs =
     let mFit         = fit ds ms rs
         testRS       = negateRowSelector rs

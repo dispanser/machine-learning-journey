@@ -5,8 +5,8 @@ module ISL.LinearRegression where
 
 import qualified Relude.Unsafe as RU
 import qualified ISL.Model as M
-import           ML.DataSet (Feature(..), Column(..), DataSet'(..))
-import qualified ML.DataSet as DS
+import           ML.Dataset (Feature(..), Column(..), Dataset(..))
+import qualified ML.Dataset as DS
 import           ISL.Model (ModelSpec(..))
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
@@ -115,12 +115,12 @@ linearRegression response inputCols ms =
     in  LinearRegression { .. }
 
 
-linearRegression' :: DataSet' -> ModelSpec -> LinearRegression
+linearRegression' :: Dataset -> ModelSpec -> LinearRegression
 linearRegression' ds ms = linearRegression responseCols featureCols ms
  where responseCols = RU.head $ DS.featureVectors' ds $ response ms
        featureCols  = DS.extractDataColumns ds $ features' ms
 
-linearRegression'' :: DataSet' -> ModelSpec ->
+linearRegression'' :: Dataset -> ModelSpec ->
     DS.RowSelector -> LinearRegression
 linearRegression'' ds ms rs = linearRegression responseCols featureCols ms
  where responseCols = DS.filterDataColumn rs $ RU.head $

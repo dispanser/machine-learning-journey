@@ -2,25 +2,25 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module ISL.DataSet.CSV where
+module ISL.Dataset.CSV where
 
 import qualified Relude.Unsafe as RU
 import qualified Data.Text as T
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
-import           ML.DataSet (DataSet'(..), createFromFeatures)
-import           ML.DataSet (Column(..) , featureName , createFeature)
+import           ML.Dataset (Dataset(..), createFromFeatures)
+import           ML.Dataset (Column(..) , featureName , createFeature)
 import           Text.CSV (parseCSVFromFile, Record, printCSV)
 
 -- create a dataset, the new way
-createDataSet :: FilePath -> IO DataSet'
-createDataSet = createDataSet' (const True)
+createDataset :: FilePath -> IO Dataset
+createDataset = createDataset' (const True)
 
 -- create a dataset, using a predicate on the column name to
 -- reduce the number of columns
 
-createDataSet' :: (Text -> Bool) -> FilePath -> IO DataSet'
-createDataSet' p f =
+createDataset' :: (Text -> Bool) -> FilePath -> IO Dataset
+createDataset' p f =
     parseCSVFromFile f >>= \case
         Right (header:body) ->
             let bodyColumns = (toText <$>) <$> zipAll (filter (/= [""]) body)

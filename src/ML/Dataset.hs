@@ -13,7 +13,7 @@ This is far away from being usable:
 - no support for N/A
 -}
 
-module ML.DataSet where
+module ML.Dataset where
 
 import           GHC.Show (Show(..))
 import qualified Data.Map.Strict as M
@@ -34,7 +34,7 @@ type RowSelector = Int -> Bool
 
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
-data DataSet' = DataSet'
+data Dataset = Dataset
     { dsName'      :: T.Text
     , dsFeatures   :: [Feature Double]
     , dsColumns'   :: [Column Double]
@@ -45,7 +45,7 @@ data DataSet' = DataSet'
     , featureSpace :: FeatureSpace
     }
 
-instance Show DataSet' where
+instance Show Dataset where
   show = toString . unlines . summary
 
 -- meta data for a data set, defining the subset of the data that's
@@ -84,7 +84,7 @@ instance Summary (Feature Double) where
   summary (SingleCol col) = summary col
   summary (MultiCol cat ) = summary cat
 
-instance Summary DataSet' where
+instance Summary Dataset where
   summary ds = concatMap summary $ dsFeatures ds
 
 instance Summary (Column Double) where
@@ -93,7 +93,7 @@ instance Summary (Column Double) where
 instance Summary (Categorical Double) where
   summary = (:[]) . summarizeCategorical
 
-createFromFeatures :: T.Text -> [Feature Double] -> DataSet'
+createFromFeatures :: T.Text -> [Feature Double] -> Dataset
 createFromFeatures name feats =
     let dsName'      = name
         dsFeatures   = feats
@@ -115,21 +115,21 @@ createFromFeatures name feats =
         findMissingClass _ = Nothing
         colByName' c = whenNothing (M.lookup c columnIndex) (findMissingClass c)
         featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
-    in DataSet' { .. }
+    in Dataset { .. }
 
 columnLength :: [Column a] -> Int
 columnLength []     = 0
 columnLength (x:_) = V.length . colData $ x
 
 -- TODO: Either Text ? notion of missing / spec mismatch?
-extractDataColumns :: DataSet' -> FeatureSpace -> [Column Double]
+extractDataColumns :: Dataset -> FeatureSpace -> [Column Double]
 extractDataColumns ds fs = concatMap (featureVectors' ds) $ knownFeats fs
 
 filterDataColumn :: RowSelector -> Column a -> Column a
 filterDataColumn rs (Column name cData) =
     Column name $ V.ifilter (\i _ -> rs i) cData
 
-featureVectors' :: DataSet' -> FeatureSpec -> [Column Double]
+featureVectors' :: Dataset -> FeatureSpec -> [Column Double]
 featureVectors' ds FeatureSpec { .. } =
     if null additionalColumns
        then fromMaybe [] $ (:[]) <$> (colByName' ds column)

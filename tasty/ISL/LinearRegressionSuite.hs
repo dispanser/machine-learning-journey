@@ -4,8 +4,8 @@
 module ISL.LinearRegressionSuite where
 
 import           ISL.Model       (buildModelSpec)
-import           ISL.DataSet.CSV (createDataSet)
-import           ML.DataSet (DataSet'(..))
+import           ISL.Dataset.CSV (createDataset)
+import           ML.Dataset (Dataset(..))
 import           Control.Monad (zipWithM_)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
@@ -17,12 +17,12 @@ import           Data.Vector.Storable (Vector)
 spec_ISLRLinearRegression' :: Spec
 spec_ISLRLinearRegression' = parallel $
     describe "Adertising dataset, ISLR chapter 3:" $ do
-        advertisingDataSet <- runIO $ createDataSet "data/Advertising.csv"
+        advertisingDataset <- runIO $ createDataset "data/Advertising.csv"
         describe "simple linear regression for 'sales ~ TV'" $ do
             let Right modelSpec = buildModelSpec
-                    (featureSpace advertisingDataSet) "sales" ["TV"]
+                    (featureSpace advertisingDataset) "sales" ["TV"]
                 lr@LinearRegression {..} = linearRegression'
-                    advertisingDataSet modelSpec
+                    advertisingDataset modelSpec
             it "computes coefficients" $
                 checkVector lrCoefficients   [7.0325, 0.0475]
 
@@ -45,10 +45,10 @@ spec_ISLRLinearRegression' = parallel $
 
         describe "multivariate OLS for 'sales ~ TV + Radio + Newsaper'" $ do
             let Right modelSpec = buildModelSpec
-                    (featureSpace advertisingDataSet) "sales" [
+                    (featureSpace advertisingDataset) "sales" [
                         "TV", "radio", "newspaper"]
                 lr@LinearRegression {..} = linearRegression'
-                    advertisingDataSet modelSpec
+                    advertisingDataset modelSpec
             it "computes coeffiicents" $ do
                 checkVector lrCoefficients [ 2.939, 0.046, -0.001, 0.189 ]
 

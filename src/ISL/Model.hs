@@ -7,8 +7,8 @@
 module ISL.Model where
 
 import qualified Relude.Unsafe as RU
-import qualified ML.DataSet as DS
-import           ML.DataSet (DataSet'(..), Feature(..), Column(..)
+import qualified ML.Dataset as DS
+import           ML.Dataset (Dataset(..), Feature(..), Column(..)
                             , FeatureSpace(..) , FeatureSpec(..))
 import           Data.Text (Text)
 
@@ -16,12 +16,12 @@ import           Data.Text (Text)
 type Prediction = Feature Double
 
 class Predictor a where
-  predict  :: a -> DataSet'                   -> Prediction
-  predict' :: a -> DataSet' -> DS.RowSelector -> Prediction
+  predict  :: a -> Dataset                   -> Prediction
+  predict' :: a -> Dataset -> DS.RowSelector -> Prediction
 
 class ModelFit a where
-  fit  :: DataSet' -> ModelSpec                   -> a
-  fit' :: DataSet' -> ModelSpec -> DS.RowSelector -> a
+  fit  :: Dataset -> ModelSpec                   -> a
+  fit' :: Dataset -> ModelSpec -> DS.RowSelector -> a
 
 data ModelSpec = ModelSpec
     { features' :: FeatureSpace
@@ -38,6 +38,6 @@ buildModelSpec FeatureSpace {..} responseName featureNames = do
         { features' = DS.createFeatureSpace features
         , response  = response }
 
-extractResponseVector :: DataSet' -> ModelSpec -> Column Double
+extractResponseVector :: Dataset -> ModelSpec -> Column Double
 extractResponseVector ds ms = RU.head $ DS.featureVectors' ds (response ms)
 
