@@ -6,7 +6,7 @@ module ML.DatasetSuite where
 import           ML.Dataset
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
-import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as V
 
 fDouble, fNAs, fCat :: Feature Double
 fDouble       = createFeature "col1" ["1.0", "2.0", "3.0"]

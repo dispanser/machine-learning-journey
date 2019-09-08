@@ -8,6 +8,7 @@ import qualified Relude.Unsafe as RU
 import qualified Data.Text as T
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as VU
 import           ML.Dataset (Dataset(..), createFromFeatures)
 import           ML.Dataset (Column(..) , featureName , createFeature)
 import           Text.CSV (parseCSVFromFile, Record, printCSV)
@@ -44,8 +45,8 @@ writeCsv :: FilePath -> [(Column Double, Double -> String)] -> IO ()
 writeCsv fp columns = writeFile fp $ printCSV (header:body)
  where header             = T.unpack . colName . fst <$> columns
        (cols, formatters) = unzip columns
-       numRows            = fromMaybe 0 $ V.length . colData . fst <$> listToMaybe columns
+       numRows            = fromMaybe 0 $ VU.length . colData . fst <$> listToMaybe columns
        -- createRow :: Int -> [String]
-       createRow i = zipWith ($) formatters ((V.! i) . colData <$> cols)
+       createRow i = zipWith ($) formatters ((VU.! i) . colData <$> cols)
        body        = createRow <$> [0..numRows-1]
 

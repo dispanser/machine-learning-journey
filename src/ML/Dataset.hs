@@ -19,8 +19,8 @@ import           GHC.Show (Show(..))
 import qualified Data.Map.Strict as M
 import qualified Data.Scientific as Scientific
 import qualified Data.Text as T
-import           Data.Vector (Vector)
-import qualified Data.Vector as V
+import           Data.Vector.Unboxed (Vector)
+import qualified Data.Vector.Unboxed as V
 import qualified Formatting as F
 import qualified Formatting.ShortFormatters as F
 import           Formatting ((%), (%.))
@@ -117,7 +117,7 @@ createFromFeatures name feats =
         featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
     in Dataset { .. }
 
-columnLength :: [Column a] -> Int
+columnLength :: V.Unbox a => [Column a] -> Int
 columnLength []     = 0
 columnLength (x:_) = V.length . colData $ x
 
@@ -125,7 +125,7 @@ columnLength (x:_) = V.length . colData $ x
 extractDataColumns :: Dataset -> FeatureSpace -> [Column Double]
 extractDataColumns ds fs = concatMap (featureVectors' ds) $ knownFeats fs
 
-filterDataColumn :: RowSelector -> Column a -> Column a
+filterDataColumn :: V.Unbox a => RowSelector -> Column a -> Column a
 filterDataColumn rs (Column name cData) =
     Column name $ V.ifilter (\i _ -> rs i) cData
 
@@ -171,7 +171,7 @@ columnNames :: Feature a -> [Text]
 columnNames (SingleCol Column { .. })      = [colName]
 columnNames (MultiCol  Categorical { .. }) = colName <$> features
 
-featureSize :: Feature a -> Int
+featureSize :: V.Unbox a => Feature a -> Int
 featureSize (SingleCol col)                = colSize col
 featureSize (MultiCol  Categorical { .. }) = maybe 0 colSize $ listToMaybe features
 
@@ -202,7 +202,7 @@ featureColumns :: Feature a -> [Column a]
 featureColumns (SingleCol col)               = [col]
 featureColumns (MultiCol Categorical { .. }) = features
 
-colSize :: Column a -> Int
+colSize :: V.Unbox a => Column a -> Int
 colSize = V.length . colData
 
 createFeature :: Text -> [Text] -> Feature Double

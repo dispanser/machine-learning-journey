@@ -12,7 +12,7 @@ import qualified ML.Model as M
 import           ML.Dataset (Dataset, RowSelector)
 import qualified ML.Dataset as DS
 import qualified System.Random as Rand
-import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as V
 
 -- create a list of booleans that can be used for a validation set split
 validationSetSplit :: Int -> Int -> [Bool]
