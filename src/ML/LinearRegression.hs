@@ -10,6 +10,7 @@ import qualified ML.Dataset as DS
 import           ML.Model (ModelSpec(..))
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
+import qualified Numeric.Morpheus.Statistics as MS
 import qualified Formatting as F
 import           Formatting ((%), (%.))
 import qualified Data.Text as T
@@ -101,7 +102,7 @@ linearRegression response inputCols ms =
             M.toColumns $ M.linearSolveLS xX $ M.fromColumns [y]
         residuals        = y - predictLinearRegression lrCoefficients xs
         lrRss            = residuals <.> residuals
-        yMean            = mean y
+        yMean            = MS.mean y
         yDelta           = y - (VS.replicate n yMean)
         lrTss            = yDelta <.> yDelta
         lrMse            = lrRss / fromIntegral (n - p - 1)
@@ -137,9 +138,6 @@ predictLinearRegression bs xs =
           else error $ "number of input columns '" <>
                 show (M.cols xX) <> "' does not match expected '" <>
                     show (VS.length bs) <> "'"
-
-mean :: (VS.Storable a, Fractional a) => Vector a -> a
-mean xs = VS.sum xs / (fromIntegral $ VS.length xs)
 
 mse :: LinearRegression -> Double
 mse LinearRegression { .. } = lrRss / fromIntegral n

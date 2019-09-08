@@ -3,6 +3,7 @@ packages:
   - '.'
 extra-deps:
   - hmatrix-0.20.0.0
+  - hmatrix-morpheus-0.1.1.2
   # - diagrams-lib-1.4.2.3
   # - diagrams-svg-1.4.2
   # - test-invariant-0.4.5.0
@@ -11,6 +12,8 @@ flags:
     hmatrix:
         openblas:              true
         disable-default-paths: true
+    hmatrix-morpheus:
+        openblas:              true
 nix:
   enable: true
   packages: [ openblasCompat, liblapack ]

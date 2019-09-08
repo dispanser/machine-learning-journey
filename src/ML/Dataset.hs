@@ -3,6 +3,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 {-
 Very simple prototype of how to represent data
@@ -21,6 +22,7 @@ import qualified Data.Scientific as Scientific
 import qualified Data.Text as T
 import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector.Generic as VG
 import qualified Formatting as F
 import qualified Formatting.ShortFormatters as F
 import           Formatting ((%), (%.))
@@ -215,8 +217,7 @@ createFeature name xs@(x:_) =
 
 replaceNAs :: Vector Double -> Vector Double
 replaceNAs xs =
-    let cleanVals = V.filter (not . isNaN) xs
-        mean      = V.sum cleanVals / fromIntegral (V.length cleanVals)
+    let mean      = vmean $ V.filter (not . isNaN) xs
     in V.map (\x -> if isNaN x then mean else x) xs
 
 createSingleCol :: Text -> [Text] -> Column Double
@@ -262,8 +263,8 @@ numF  = F.l 13 ' ' %. (F.fitRight 13 %. F.sf)
 intF :: F.Format r (Integer -> r)
 intF = F.d
 
-vmean :: Vector Double -> Double
-vmean vs = V.sum vs / fromIntegral (V.length vs)
+vmean :: VG.Vector v Double => v Double -> Double
+vmean vs = VG.sum vs / fromIntegral (VG.length vs)
 
 summarizeCategorical :: Categorical Double -> Text
 summarizeCategorical c@Categorical { .. } =
