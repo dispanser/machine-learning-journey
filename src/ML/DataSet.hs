@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 {-
 Very simple prototype of how to represent data
@@ -14,10 +15,16 @@ This is far away from being usable:
 
 module ML.DataSet where
 
+import           GHC.Show (Show(..))
 import qualified Data.Map.Strict as M
+import qualified Data.Scientific as Scientific
 import qualified Data.Text as T
 import           Data.Vector (Vector)
 import qualified Data.Vector as V
+import qualified Formatting as F
+import qualified Formatting.ShortFormatters as F
+import           Formatting ((%), (%.))
+import qualified Statistics.Quantile as Q
 
 class Summary a where
   summary :: a -> [Text]
@@ -38,6 +45,9 @@ data DataSet' = DataSet'
     , featureSpace :: FeatureSpace
     }
 
+instance Show DataSet' where
+  show = toString . unlines . summary
+
 -- meta data for a data set, defining the subset of the data that's
 -- considered active in a given context (features available in a
 -- dataset, features that where used to train a model,
@@ -46,6 +56,9 @@ data FeatureSpace = FeatureSpace
     { findFeature :: Text -> Maybe FeatureSpec
     , knownFeats  :: [FeatureSpec]
     }
+
+instance Show FeatureSpace where
+  show = GHC.Show.show . knownFeats
 
 -- TODO: this is a subset of the information that's currently stored
 -- as part of the Feature itself.
@@ -66,6 +79,19 @@ data Categorical a = Categorical
 
 data Feature a = SingleCol (Column a)
                | MultiCol  (Categorical a) deriving (Eq, Show)
+
+instance Summary (Feature Double) where
+  summary (SingleCol col) = summary col
+  summary (MultiCol cat ) = summary cat
+
+instance Summary DataSet' where
+  summary ds = concatMap summary $ dsFeatures ds
+
+instance Summary (Column Double) where
+  summary = (:[]) . summarizeColumn
+
+instance Summary (Categorical Double) where
+  summary = (:[]) . summarizeCategorical
 
 createFromFeatures :: T.Text -> [Feature Double] -> DataSet'
 createFromFeatures name feats =
@@ -90,6 +116,10 @@ createFromFeatures name feats =
         colByName' c = whenNothing (M.lookup c columnIndex) (findMissingClass c)
         featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
     in DataSet' { .. }
+
+columnLength :: [Column a] -> Int
+columnLength []     = 0
+columnLength (x:_) = V.length . colData $ x
 
 -- TODO: Either Text ? notion of missing / spec mismatch?
 extractDataColumns :: DataSet' -> FeatureSpace -> [Column Double]
@@ -205,3 +235,35 @@ createCategorical className colData =
             fmap (\d -> if d == kl then 1.0 else 0.0) colData
     in  Categorical { .. }
 
+summarizeColumn :: Column Double -> Text
+summarizeColumn Column { .. } =
+    let [min', fstQ, med, thrdQ, max'] =
+            Q.quantiles Q.medianUnbiased [0..4] 4 colData
+        mean = vmean colData
+    in F.sformat (textF  13 % " Min: " % scieF % " 1stQ:" % scieF %
+        " Med: " % scieF % " 3rdQ:" % scieF % " Max:" % scieF %
+            " Mean:" % scieF)
+            colName (dSc min') (dSc fstQ) (dSc med) (dSc thrdQ)
+            (dSc max') (dSc mean)
+dSc = Scientific.fromFloatDigits
+scieF = F.left 11 ' ' %. F.scifmt Scientific.Generic (Just 2)
+textF i = (F.l i ' ' %. F.st)
+percF = F.left 5 ' ' %. F.scifmt Scientific.Generic (Just 2)
+numF  = F.l 13 ' ' %. (F.fitRight 13 %. F.sf)
+
+vmean :: Vector Double -> Double
+vmean vs = V.sum vs / fromIntegral (V.length vs)
+
+summarizeCategorical :: Categorical Double -> Text
+summarizeCategorical c@Categorical { .. } =
+    let size        = fromIntegral $ columnLength features
+        featNameLength = succ $ T.length className
+        baseFeature = baselineColumn className c
+        fc :: Column Double -> Text
+        fc Column { .. } = F.sformat (textF 5 % ", n=" % F.d % " " % percF % "%")
+            (T.drop featNameLength colName)
+            (round $ V.sum colData)
+            (dSc $ 100.0*(V.sum colData)/size)
+
+        texts = fc <$> baseFeature:features
+    in F.sformat (textF 13) className <> (T.intercalate " | " $ texts)

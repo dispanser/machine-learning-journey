@@ -19,6 +19,7 @@ dependencies:
   - csv
   - formatting
   - scientific
+  - pretty-simple
 
 library:
   source-dirs: src
