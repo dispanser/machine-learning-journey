@@ -34,6 +34,8 @@ class Summary a where
 -- select the subset of rows that are
 type RowSelector = Int -> Bool
 
+type ColumnTransformer = Column Double -> Column Double
+
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
 data Dataset = Dataset
@@ -279,3 +281,9 @@ summarizeCategorical c@Categorical { .. } =
 
         texts = fc <$> baseFeat:features
     in F.sformat (textF 13) className <> (T.intercalate " | " $ texts)
+
+rowSelectorFromList :: [Bool] -> RowSelector
+rowSelectorFromList xs =
+    let v = V.fromList xs
+    in (v V.!)
+

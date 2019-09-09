@@ -3,23 +3,24 @@
 
 module ISL.LinearRegressionSuite where
 
-import           ML.Model       (buildModelSpec)
+import qualified ML.Model as M
 import           ML.Dataset.CSV (createDataset)
 import           ML.Dataset (Dataset(..))
+import qualified ML.Dataset as DS
 import           Control.Monad (zipWithM_)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
-import           ML.LinearRegression (linearRegression' , LinearRegression (..)
+import           ML.LinearRegression (linearRegression', linearRegression'' , LinearRegression (..)
                                       , tStatistics, pValue, fStatistics)
 import qualified Data.Vector.Storable as V
 import           Data.Vector.Storable (Vector)
 
-spec_ISLRLinearRegression' :: Spec
-spec_ISLRLinearRegression' = parallel $
+spec_ISLRLinearRegression :: Spec
+spec_ISLRLinearRegression = parallel $
     describe "Adertising dataset, ISLR chapter 3:" $ do
         advertisingDataset <- runIO $ createDataset "data/Advertising.csv"
         describe "simple linear regression for 'sales ~ TV'" $ do
-            let Right modelSpec = buildModelSpec
+            let Right modelSpec = M.buildModelSpec
                     (featureSpace advertisingDataset) "sales" ["TV"]
                 lr@LinearRegression {..} = linearRegression'
                     advertisingDataset modelSpec
@@ -44,7 +45,7 @@ spec_ISLRLinearRegression' = parallel $
                 checkVector (V.map pValueF $ tStatistics lr) [0.0, 0.0]
 
         describe "multivariate OLS for 'sales ~ TV + Radio + Newsaper'" $ do
-            let Right modelSpec = buildModelSpec
+            let Right modelSpec = M.buildModelSpec
                     (featureSpace advertisingDataset) "sales" [
                         "TV", "radio", "newspaper"]
                 lr@LinearRegression {..} = linearRegression'

@@ -37,16 +37,20 @@ data LinearRegression = LinearRegression
     }
 
 instance M.Predictor LinearRegression where
-  predict LinearRegression { .. } ds =
-      let featureCols = DS.extractDataColumns ds $ features' lrModelSpec
-          input = VS.convert . colData <$> featureCols
-          olsR  = predictLinearRegression lrCoefficients input
-      in SingleCol . Column lrResponseName . VS.convert $ olsR
-  predict' LinearRegression { .. } ds rs =
-      let featureCols = DS.extractDataColumns ds $ features' lrModelSpec
-          input = VS.convert . colData . DS.filterDataColumn rs <$> featureCols
-          olsR  = predictLinearRegression lrCoefficients input
-      in SingleCol . Column lrResponseName . VS.convert $ olsR
+  predict lr ds     = predictLinearRegression' lr ds id
+  predict' lr ds rs = predictLinearRegression' lr ds $ DS.filterDataColumn rs
+
+predictLinearRegression' :: LinearRegression -> Dataset -> DS.ColumnTransformer -> Feature Double
+predictLinearRegression' LinearRegression { .. } ds colTransformer =
+    let featureCols = DS.extractDataColumns ds $ features' lrModelSpec
+        input = VS.convert . colData . colTransformer <$> featureCols
+        olsR  = predictLinearRegression lrCoefficients input
+    in SingleCol . Column lrResponseName . VS.convert $ olsR
+
+
+instance M.ModelFit LinearRegression where
+  fit  = linearRegression'
+  fit' = linearRegression''
 
 instance DS.Summary LinearRegression where
   summary = summarizeLinearRegression
@@ -84,10 +88,6 @@ formatCoefficientInfo df name x err =
     in F.sformat formatString name
         (Scientific.fromFloatDigits x)
         (Scientific.fromFloatDigits err) tStat pV
-
-instance M.ModelFit LinearRegression where
-  fit  = linearRegression'
-  fit' = linearRegression''
 
 linearRegression :: Column Double -> [Column Double] -> ModelSpec -> LinearRegression
 linearRegression response inputCols ms =

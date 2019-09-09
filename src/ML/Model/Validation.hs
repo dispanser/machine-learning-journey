@@ -27,11 +27,6 @@ kFoldSplit seed n k =
     let rg = Rand.mkStdGen seed
     in take n $ Rand.randomRs (0, k-1) rg
 
-rowSelectorFromList :: [Bool] -> RowSelector
-rowSelectorFromList xs =
-    let v = V.fromList xs
-    in (v V.!)
-
 negateRowSelector :: RowSelector -> RowSelector
 negateRowSelector rs = \i -> not (rs i)
 
@@ -42,7 +37,7 @@ validateModel :: M.Predictor a =>
         Int -> Dataset -> M.ModelSpec -> Double
 validateModel modelFit seed ds ms =
     let n         = DS.dsNumRows' ds
-        trainRows = rowSelectorFromList $ validationSetSplit seed n
+        trainRows = DS.rowSelectorFromList $ validationSetSplit seed n
     in runWithTestSet modelFit ds ms trainRows
 
 kFoldModel :: M.Predictor a =>
@@ -51,7 +46,7 @@ kFoldModel :: M.Predictor a =>
 kFoldModel fit seed k ds ms =
     let n          = DS.dsNumRows' ds
         folds      = kFoldSplit seed n k
-        fitFold k' = let trainRowS = rowSelectorFromList ((/= k') <$> folds)
+        fitFold k' = let trainRowS = DS.rowSelectorFromList ((/= k') <$> folds)
                      in runWithTestSet fit ds ms trainRowS
     in sum (fitFold <$> [0..k-1]) / fromIntegral k
 

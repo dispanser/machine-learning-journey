@@ -25,7 +25,7 @@ class ModelFit a where
 
 data ModelSpec = ModelSpec
     { features' :: FeatureSpace
-    , response  :: FeatureSpec }
+    , response  :: FeatureSpec } deriving (Show)
 
 buildModelSpec :: FeatureSpace -> Text -> [Text] -> Either Text ModelSpec
 buildModelSpec FeatureSpace {..} responseName featureNames = do
