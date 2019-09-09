@@ -117,17 +117,16 @@ linearRegression response inputCols ms =
 
 
 linearRegression' :: Dataset -> ModelSpec -> LinearRegression
-linearRegression' ds ms = linearRegression responseCols featureCols ms
- where responseCols = RU.head $ DS.featureVectors' ds $ response ms
-       featureCols  = DS.extractDataColumns ds $ features' ms
+linearRegression' = linearRegression''' identity
 
-linearRegression'' :: Dataset -> ModelSpec ->
-    DS.RowSelector -> LinearRegression
-linearRegression'' ds ms rs = linearRegression responseCols featureCols ms
- where responseCols = DS.filterDataColumn rs $ RU.head $
-                DS.featureVectors' ds $ response ms
-       featureCols  = DS.filterDataColumn rs <$> (DS.extractDataColumns ds $
-           features' ms)
+linearRegression'' :: DS.RowSelector -> Dataset -> ModelSpec -> LinearRegression
+linearRegression'' rs = linearRegression''' (DS.filterDataColumn rs)
+
+linearRegression''' :: DS.ColumnTransformer -> Dataset -> ModelSpec -> LinearRegression
+linearRegression''' ct ds ms = linearRegression responseCols featureCols ms
+ where responseCols = ct $ RU.head $ DS.featureVectors' ds $ response ms
+       featureCols  = ct <$> (DS.extractDataColumns ds $ features' ms)
+
 
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =
