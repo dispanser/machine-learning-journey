@@ -65,6 +65,20 @@ spec_ISLRLinearRegression = parallel $
             it "computes R^2" $
                 lrR2 `shouldRoughlyEqual` 0.897
 
+spec_EmptyClassLinearRegression :: Spec
+spec_EmptyClassLinearRegression = do
+    -- when only training on a subset of the data, it can thusly happen that
+    -- some one-hot encoded class vector is 0, leading to a singular matrix
+    -- and no solution to the linear equation
+    it "should seemlessly handle empty class variables" $ do
+        let cat      = DS.createFeature "x" [ "blue", "blue", "blue", "red", "red" ]
+            yc       = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
+            ds       = DS.createFromFeatures "hspec" [cat, yc]
+            Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x"]
+        print ms
+        lrCoefficients (linearRegression'' (<= 2) ds ms) `shouldBe` V.fromList [0.0]
+
+
 shouldRoughlyEqual :: (Show a, Num a, Ord a, Fractional a) => a -> a -> IO ()
 shouldRoughlyEqual actual expected = actual `shouldSatisfy` roughlyEqual expected
 

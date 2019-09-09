@@ -22,6 +22,7 @@ main = do
             , "BsmtHalfBath", "LotConfig", "LotShape", "MasVnrArea"
             , "ExterQual", "KitchenAbvGr", "GarageCars"
             , "ScreenPorch", "GarageFinish", "KitchenQual"
+            , "RoofStyle"
             ]
 
     housingDS     <- createDataset "data/housing/train.csv"
