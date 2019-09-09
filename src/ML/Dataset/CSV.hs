@@ -20,11 +20,13 @@ createDataset = createDataset' (const True)
 -- create a dataset, using a predicate on the column name to
 -- reduce the number of columns
 
-createDataset' :: (Text -> Bool) -> FilePath -> IO Dataset
+type Pred a = a -> Bool
+
+createDataset' :: Pred Text -> FilePath -> IO Dataset
 createDataset' p f =
     parseCSVFromFile f >>= \case
         Right (header:body) ->
-            let bodyColumns = (toText <$>) <$> zipAll (filter (/= [""]) body)
+            let bodyColumns = (toText <$>) <$> transpose (filter (/= [""]) body)
                 name        = toText f
                 features = filter (p . featureName) $
                     zipWith createFeature (toText <$> header) bodyColumns
