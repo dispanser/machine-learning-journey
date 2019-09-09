@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module ISL.LinearRegressionSuite where
 
@@ -71,12 +72,14 @@ spec_EmptyClassLinearRegression = do
     -- some one-hot encoded class vector is 0, leading to a singular matrix
     -- and no solution to the linear equation
     it "should seemlessly handle empty class variables" $ do
-        let cat      = DS.createFeature "x" [ "blue", "blue", "blue", "red", "red" ]
+        let cat      = DS.createFeature "x1" [ "blue", "blue", "blue", "red", "red" ]
+            oth      = DS.createFeature "x2" [ "13", "14", "15", "8", "7" ]
             yc       = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
-            ds       = DS.createFromFeatures "hspec" [cat, yc]
-            Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x"]
-        print ms
-        lrCoefficients (linearRegression'' (<= 2) ds ms) `shouldBe` V.fromList [0.0]
+            ds       = DS.createFromFeatures "hspec" [cat, oth, yc]
+            Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+            lrFit    = linearRegression'' (<= 2) ds ms
+        checkVector (lrCoefficients lrFit) [-0.3, 0.1] -- intercept only: color can't be used
+        checkSingleCol (M.predict' lrFit ds (>=3)) [0.5, 0.4] -- intercept-based estimate
 
 
 shouldRoughlyEqual :: (Show a, Num a, Ord a, Fractional a) => a -> a -> IO ()
@@ -84,6 +87,10 @@ shouldRoughlyEqual actual expected = actual `shouldSatisfy` roughlyEqual expecte
 
 roughlyEqual :: (Num a, Ord a, Fractional a) => a -> a -> Bool
 roughlyEqual expected actual = 0.001 > abs (expected - actual)
+
+checkSingleCol :: DS.Feature Double -> [Double] -> IO ()
+checkSingleCol (DS.SingleCol DS.Column {..}) = checkVector $ V.convert colData
+checkSingleCol (DS.MultiCol _)               = const $ fail "expecting quantitative column"
 
 checkVector :: Vector Double -> [Double] -> IO ()
 checkVector xs y = do

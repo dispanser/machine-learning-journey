@@ -27,6 +27,7 @@ import qualified Formatting as F
 import qualified Formatting.ShortFormatters as F
 import           Formatting ((%), (%.))
 import qualified Statistics.Quantile as Q
+import qualified Statistics.Sample as S
 
 class Summary a where
   summary :: a -> [Text]
@@ -59,10 +60,12 @@ instance Show Dataset where
 data FeatureSpace = FeatureSpace
     { findFeature :: Text -> Maybe FeatureSpec
     , knownFeats  :: [FeatureSpec]
+    , ignoredCols :: [Text]
     }
 
 instance Show FeatureSpace where
-  show = GHC.Show.show . knownFeats
+  show fs = GHC.Show.show (knownFeats fs) <> " | "
+         <>  GHC.Show.show (ignoredCols fs)
 
 -- TODO: this is a subset of the information that's currently stored
 -- as part of the Feature itself.
@@ -121,13 +124,20 @@ createFromFeatures name feats =
         featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
     in Dataset { .. }
 
+-- column variance.
+columnVariance :: Column Double -> Double
+columnVariance = S.varianceUnbiased . colData
+
 columnLength :: V.Unbox a => [Column a] -> Int
 columnLength []     = 0
 columnLength (x:_) = V.length . colData $ x
 
 -- TODO: Either Text ? notion of missing / spec mismatch?
 extractDataColumns :: Dataset -> FeatureSpace -> [Column Double]
-extractDataColumns ds fs = concatMap (featureVectors' ds) $ knownFeats fs
+extractDataColumns ds FeatureSpace { .. } =
+    let columns = concatMap (featureVectors' ds) $ knownFeats
+    in filter (not . (`elem` ignoredCols) . colName) columns
+
 
 filterDataColumn :: V.Unbox a => RowSelector -> Column a -> Column a
 filterDataColumn rs (Column name cData) =
@@ -155,7 +165,7 @@ createFeatureSpec (SingleCol col) = FeatureSpec
 createFeatureSpace :: [FeatureSpec] -> FeatureSpace
 createFeatureSpace fs =
     let m = M.fromList $ zip (featName <$> fs) fs
-    in  FeatureSpace (flip M.lookup m) (snd <$> M.toList m)
+    in  FeatureSpace (flip M.lookup m) (snd <$> M.toList m) []
 
 -- split a text value into a prefix before _, considered the feature name,
 -- and the remaining text, considered the name of the class of the categorical

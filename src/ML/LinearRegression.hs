@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module ML.LinearRegression where
 
@@ -13,6 +14,7 @@ import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Numeric.Morpheus.Statistics as MS
 import qualified Formatting as F
 import           Formatting ((%), (%.))
+import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Scientific as Scientific
 import qualified Data.Vector as V
@@ -37,7 +39,7 @@ data LinearRegression = LinearRegression
     }
 
 instance M.Predictor LinearRegression where
-  predict lr ds     = predictLinearRegression' lr ds id
+  predict  lr ds    = predictLinearRegression' lr ds id
   predict' lr ds rs = predictLinearRegression' lr ds $ DS.filterDataColumn rs
 
 predictLinearRegression' :: LinearRegression -> Dataset -> DS.ColumnTransformer -> Feature Double
@@ -93,7 +95,8 @@ linearRegression :: Column Double -> [Column Double] -> ModelSpec -> LinearRegre
 linearRegression response inputCols ms =
     let y  = VS.convert . colData $ response
         n  = VS.length y
-        xs = VS.convert . colData <$> inputCols
+        (removedCols, featureCols) = L.partition ((==0.0) . DS.columnVariance) inputCols
+        xs = VS.convert . colData <$> featureCols
         xX = prepareMatrix n xs
         p  = pred $ M.cols xX
         lrDF             = n - p - 1
@@ -112,9 +115,9 @@ linearRegression response inputCols ms =
         lrR2             = 1 - lrRss/lrTss
         lrResponseName   = colName response
         lrFeatureNames   = colName <$> inputCols
-        lrModelSpec      = ms
+        fs'              = (features' ms) { DS.ignoredCols = colName <$> removedCols }
+        lrModelSpec      = ms { features' =  fs' }
     in  LinearRegression { .. }
-
 
 linearRegression' :: Dataset -> ModelSpec -> LinearRegression
 linearRegression' = linearRegression''' identity
@@ -126,7 +129,6 @@ linearRegression''' :: DS.ColumnTransformer -> Dataset -> ModelSpec -> LinearReg
 linearRegression''' ct ds ms = linearRegression responseCols featureCols ms
  where responseCols = ct $ RU.head $ DS.featureVectors' ds $ response ms
        featureCols  = ct <$> (DS.extractDataColumns ds $ features' ms)
-
 
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =
