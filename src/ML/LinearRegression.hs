@@ -49,11 +49,6 @@ predictLinearRegression' LinearRegression { .. } ds colTransformer =
         olsR  = predictLinearRegression lrCoefficients input
     in SingleCol . Column lrResponseName . VS.convert $ olsR
 
-
-instance M.ModelFit LinearRegression where
-  fit  = linearRegression'
-  fit' = linearRegression''
-
 instance DS.Summary LinearRegression where
   summary = summarizeLinearRegression
 
@@ -91,8 +86,8 @@ formatCoefficientInfo df name x err =
         (Scientific.fromFloatDigits x)
         (Scientific.fromFloatDigits err) tStat pV
 
-linearRegression :: Column Double -> [Column Double] -> ModelSpec -> LinearRegression
-linearRegression response inputCols ms =
+fitLinearRegression :: Column Double -> [Column Double] -> ModelSpec -> LinearRegression
+fitLinearRegression response inputCols ms =
     let y  = VS.convert . colData $ response
         n  = VS.length y
         (removedCols, featureCols) = L.partition ((==0.0) . DS.columnVariance) inputCols
@@ -126,7 +121,7 @@ linearRegression'' :: DS.RowSelector -> Dataset -> ModelSpec -> LinearRegression
 linearRegression'' rs = linearRegression''' (DS.filterDataColumn rs)
 
 linearRegression''' :: DS.ColumnTransformer -> Dataset -> ModelSpec -> LinearRegression
-linearRegression''' ct ds ms = linearRegression responseCols featureCols ms
+linearRegression''' ct ds ms = fitLinearRegression responseCols featureCols ms
  where responseCols = ct $ RU.head $ DS.featureVectors' ds $ response ms
        featureCols  = ct <$> (DS.extractDataColumns ds $ features' ms)
 

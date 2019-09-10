@@ -28,9 +28,8 @@ main = do
     housingDS     <- createDataset "data/housing/train.csv"
     housingTestDS <- createDataset "data/housing/test.csv"
 
-    let Right modelSpec = M.buildModelSpec
-            (DS.featureSpace housingDS) "SalePrice" cols
-        lrFit          = M.fit housingDS modelSpec :: OLS.LinearRegression
+    let Right modelSpec = M.buildModelSpec (DS.featureSpace housingDS) "SalePrice" cols
+        lrFit           = OLS.linearRegression' housingDS modelSpec
 
     mapM_ print $ DS.summary lrFit
 

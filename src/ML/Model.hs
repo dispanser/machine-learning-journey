@@ -19,10 +19,6 @@ class Predictor a where
   predict  :: a -> Dataset                   -> Prediction
   predict' :: a -> Dataset -> DS.RowSelector -> Prediction
 
-class ModelFit a where
-  fit  ::                   Dataset -> ModelSpec -> a
-  fit' :: DS.RowSelector -> Dataset -> ModelSpec -> a
-
 data ModelSpec = ModelSpec
     { features' :: FeatureSpace
     , response  :: FeatureSpec } deriving (Show)
