@@ -38,6 +38,14 @@ data LinearRegressionGD = LinearRegressionGD
 
 type LearningRate = Double
 
+type TrainingFinished = Pred TrainingState
+
+data TrainingState = TrainingState
+    { coefficients :: Vector Double
+    , rss          :: Double
+    , dRss         :: Double
+    , iter         :: Int } deriving Show
+
 type Coefficients = Vector Double
 
 fitLinearRegression :: LearningRate
@@ -51,17 +59,19 @@ fitLinearRegression a response inputCols ms =
         xs = VS.convert . colData <$> inputCols :: [Vector Double]
         xX = OLS.prepareMatrix n xs
         p  = pred $ M.cols xX
+        yDelta           = y - (VS.replicate n yMean)
+        lrTss            = yDelta <.> yDelta
         lrDF             = n - p - 1
-        -- TODO: ugly as hell
-        -- lrCoefficients   = fromMaybe VS.empty $ listToMaybe $
-        --     M.toColumns $ M.linearSolveLS xX $ M.fromColumns [y]
         step'            = step a xX y
-        lrCoefficients   = RU.last $ take 10000 $ iterate step' $ VS.replicate (succ p) 0.0
+        initialState     = TrainingState (VS.replicate (succ p) 0.0) lrTss lrTss 0
+        stateSeq         = iterate step' initialState
+        finalState       = RU.head $
+            dropWhile (maxIterations 8000) stateSeq
+            -- dropWhile (rssDeltaBelow 0.0000000003) stateSeq
+        lrCoefficients   = coefficients finalState
         residuals        = y - OLS.predictLinearRegression lrCoefficients xs
         lrRss            = residuals <.> residuals
         yMean            = MS.mean y
-        yDelta           = y - (VS.replicate n yMean)
-        lrTss            = yDelta <.> yDelta
         lrMse            = lrRss / fromIntegral (n - p - 1)
         lrRse            = sqrt lrMse
         lrStandardErrors = M.takeDiag $ M.scale lrMse (
@@ -75,12 +85,26 @@ fitLinearRegression a response inputCols ms =
 step :: LearningRate
      -> Matrix Double  -- X
      -> Vector Double  -- Y
-     -> Coefficients   -- theta
-     -> Coefficients   -- theta'
-step a xX y cs =
-    let yHat = xX #> cs
+     -> TrainingState   -- theta
+     -> TrainingState   -- theta'
+step a xX y TrainingState { .. } =
+    let yHat = xX #> coefficients
+        resi = yHat - y
+        nRss = resi <.> resi
     in  --debugShow "iter" $
-        cs - (M.scale a $ (yHat - y) <# xX)
+        TrainingState
+            { coefficients = coefficients - (M.scale a $ (yHat - y) <# xX)
+            , iter         = iter + 1
+            , rss          = nRss
+            , dRss         = rss - nRss}
+
+-- signals true iff the rss change between two consecutive training states is smaller
+-- than the given threshold
+rssDeltaBelow :: Double -> TrainingFinished
+rssDeltaBelow threshold (dRss -> dRss) = threshold < abs dRss
+
+maxIterations :: Int -> TrainingFinished
+maxIterations n (iter -> n1) = n >= n1
 
 linearRegression' :: LearningRate -> Dataset -> ModelSpec -> LinearRegressionGD
 linearRegression' = linearRegression''' identity

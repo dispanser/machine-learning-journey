@@ -20,8 +20,6 @@ createDataset = createDataset' (const True)
 -- create a dataset, using a predicate on the column name to
 -- reduce the number of columns
 
-type Pred a = a -> Bool
-
 createDataset' :: Pred Text -> FilePath -> IO Dataset
 createDataset' p f =
     parseCSVFromFile f >>= \case

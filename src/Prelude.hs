@@ -2,6 +2,7 @@
 
 module Prelude
        ( module Relude
+       , Pred
        , debugShow
        , traceSome
        ) where
@@ -18,4 +19,6 @@ traceSome :: Show b => String -> (a -> b) -> a -> a
 traceSome prefix f x =
     let msg = show prefix <> ": " <> show (f x)
     in D.trace msg x
+
+type Pred a = a -> Bool
 
