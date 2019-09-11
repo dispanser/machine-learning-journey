@@ -33,30 +33,28 @@ negateRowSelector rs = \i -> not (rs i)
 -- fit a model based on the provided input, splitting the data into training and
 -- validation set based on the provided seed. Note: split is 50 / 50.
 validateModel :: M.Predictor a =>
-    (RowSelector -> Dataset -> M.ModelSpec -> a) ->
-        Int -> Dataset -> M.ModelSpec -> Double
+    (RowSelector -> Dataset -> a) -> Int -> Dataset -> M.ModelSpec -> Double
 validateModel modelFit seed ds ms =
     let n         = DS.dsNumRows' ds
         trainRows = DS.rowSelectorFromList $ validationSetSplit seed n
-    in runWithTestSet modelFit ds ms trainRows
+    in runWithTestSet modelFit ds trainRows ms
 
 kFoldModel :: M.Predictor a =>
-    (RowSelector -> Dataset -> M.ModelSpec -> a) ->
+    (RowSelector -> Dataset -> a) ->
         Int -> Int -> Dataset -> M.ModelSpec -> Double
 kFoldModel fit seed k ds ms =
     let n          = DS.dsNumRows' ds
         folds      = kFoldSplit seed n k
         fitFold k' = let trainRowS = DS.rowSelectorFromList ((/= k') <$> folds)
-                     in runWithTestSet fit ds ms trainRowS
+                     in runWithTestSet fit ds trainRowS ms
     in sum (fitFold <$> [0..k-1]) / fromIntegral k
 
 -- row selector selects the rows used for training the model. The negation
 -- yields the rows that are used for computing the prediction error
-runWithTestSet :: M.Predictor a =>
-    (RowSelector -> Dataset -> M.ModelSpec -> a) ->
-        Dataset -> M.ModelSpec -> RowSelector -> Double
-runWithTestSet fit ds ms rs =
-    let mFit         = fit rs ds ms
+runWithTestSet :: M.Predictor a => (RowSelector -> Dataset -> a)
+               -> Dataset -> RowSelector -> M.ModelSpec -> Double
+runWithTestSet fit ds rs ms =
+    let mFit         = fit rs ds
         testRS       = negateRowSelector rs
         prediction   = RU.head $ DS.featureVectors $ M.predict' mFit ds testRS
         testResponse = DS.colData . DS.filterDataColumn testRS $

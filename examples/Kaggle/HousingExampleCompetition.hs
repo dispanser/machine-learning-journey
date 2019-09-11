@@ -28,15 +28,18 @@ main = do
     housingDS     <- createDataset "data/housing/train.csv"
     housingTestDS <- createDataset "data/housing/test.csv"
 
-    let Right modelSpec = M.buildModelSpec (DS.featureSpace housingDS) "SalePrice" cols
-        lrFit           = OLS.linearRegression' housingDS modelSpec
+    let Right ms  = M.buildModelSpec (DS.featureSpace housingDS) "SalePrice" cols
+        cfg       = OLS.ModelConfig ms
+        lrFit     = M.fit cfg housingDS :: OLS.LinearRegression
 
     mapM_ print $ DS.summary lrFit
 
-    let valMSE = MV.validateModel OLS.linearRegression'' 1 housingDS modelSpec
+    let fitMethod = M.fitSome cfg :: DS.RowSelector -> DS.Dataset -> OLS.LinearRegression
+
+    let valMSE = MV.validateModel fitMethod 1 housingDS ms
     putStrLn $ "validation set MSE: " <> show valMSE
 
-    let kFoldMSE = MV.kFoldModel OLS.linearRegression'' 1 5 housingDS modelSpec
+    let kFoldMSE = MV.kFoldModel fitMethod 1 5 housingDS ms
     putStrLn $ "5-fold cross validation MSE: " <> show kFoldMSE
 
     let Just idCol = (DS.colByName' housingTestDS) "Id"

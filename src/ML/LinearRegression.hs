@@ -1,5 +1,6 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module ML.LinearRegression where
@@ -23,6 +24,9 @@ import           Data.Vector.Storable (Vector)
 import           Statistics.Distribution.StudentT (studentT)
 import           Statistics.Distribution (complCumulative)
 
+data ModelConfig = ModelConfig
+    { modelSpec :: ModelSpec } deriving Show
+
 data LinearRegression = LinearRegression
     { lrFeatureNames   :: [T.Text]
     , lrResponseName   :: T.Text
@@ -37,6 +41,11 @@ data LinearRegression = LinearRegression
     , p                :: Int
     , lrModelSpec      :: ModelSpec
     }
+
+instance M.ModelFit ModelConfig LinearRegression where
+  -- fit :: ModelConfig -> Dataset -> LinearRegression
+  fit            = linearRegression''' identity
+  fitSome cfg rs = linearRegression''' (DS.filterDataColumn rs) cfg
 
 instance M.Predictor LinearRegression where
   predict  lr ds    = predictLinearRegression' lr ds id
@@ -115,14 +124,11 @@ fitLinearRegression response inputCols ms =
         lrModelSpec      = ms { features' =  fs' }
     in  LinearRegression { .. }
 
-linearRegression' :: Dataset -> ModelSpec -> LinearRegression
-linearRegression' = linearRegression''' identity
-
-linearRegression'' :: DS.RowSelector -> Dataset -> ModelSpec -> LinearRegression
-linearRegression'' rs = linearRegression''' (DS.filterDataColumn rs)
-
-linearRegression''' :: DS.ColumnTransformer -> Dataset -> ModelSpec -> LinearRegression
-linearRegression''' ct ds ms = fitLinearRegression responseCols featureCols ms
+linearRegression''' :: DS.ColumnTransformer
+                    -> ModelConfig
+                    -> Dataset
+                    -> LinearRegression
+linearRegression''' ct (modelSpec -> ms) ds = fitLinearRegression responseCols featureCols ms
  where responseCols = ct $ RU.head $ DS.featureVectors' ds $ response ms
        featureCols  = ct <$> (DS.extractDataColumns ds $ features' ms)
 

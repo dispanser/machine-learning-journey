@@ -11,25 +11,22 @@ import qualified ML.Dataset as DS
 import           Control.Monad (zipWithM_)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
-import           ML.LinearRegression (linearRegression', linearRegression''
-                                     , LinearRegression (..)
-                                     , tStatistics, pValue, fStatistics)
+import qualified ML.LinearRegression as LR
 import qualified ML.LinearRegressionGD as LRGD
 import qualified Data.Vector.Storable as V
 import           Data.Vector.Storable (Vector)
 import qualified Data.Vector.Unboxed as VU
 
-type LR a = DS.Column Double -> [DS.Column Double] -> M.ModelSpec -> a
-
 spec_babyRegression :: Spec
 spec_babyRegression = do
     describe "simple linear regression" $ do
         -- perfect line: y = 2x-1
-        let x  = DS.SingleCol $ DS.Column "x" $ VU.fromList [2.0, 3.0, 4.0 :: Double]
-            y  = DS.SingleCol $ DS.Column "y" $ VU.fromList [3.0, 5.0, 7.0 :: Double]
-            ds = DS.createFromFeatures "hspec" [x, y]
+        let x        = DS.SingleCol $ DS.Column "x" $ VU.fromList [2.0, 3.0, 4.0 :: Double]
+            y        = DS.SingleCol $ DS.Column "y" $ VU.fromList [3.0, 5.0, 7.0 :: Double]
+            ds       = DS.createFromFeatures "hspec" [x, y]
             Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x"]
-            lr = LRGD.linearRegression' 0.005 ds ms
+            cfg      = LRGD.ModelConfig 0.005 (LRGD.maxIterations 10000) ms
+            lr       = M.fit cfg ds
         it "should correctly estimate coefficients for some toy problem" $ do
             checkVector (LRGD.lrCoefficients lr) [-1, 2]
 
@@ -38,10 +35,9 @@ spec_ISLRLinearRegression = parallel $
     describe "Adertising dataset, ISLR chapter 3:" $ do
         advertisingDataset <- runIO $ createDataset "data/Advertising.csv"
         describe "simple linear regression for 'sales ~ TV'" $ do
-            let Right modelSpec = M.buildModelSpec
+            let Right cfg = LR.ModelConfig <$> M.buildModelSpec
                     (featureSpace advertisingDataset) "sales" ["TV"]
-                lr@LinearRegression {..} = linearRegression'
-                    advertisingDataset modelSpec
+                lr@LR.LinearRegression {..} = M.fit cfg advertisingDataset
             it "computes coefficients" $
                 checkVector lrCoefficients   [7.0325, 0.0475]
 
@@ -55,19 +51,18 @@ spec_ISLRLinearRegression = parallel $
                 lrR2 `shouldRoughlyEqual` 0.612
 
             it "computes t-statistics" $
-                checkVector (tStatistics lr) [15.36, 17.667]
+                checkVector (LR.tStatistics lr) [15.36, 17.667]
 
-            let pValueF = pValue $ fromIntegral lrDF
+            let pValueF = LR.pValue $ fromIntegral lrDF
 
             it "computes p-values" $
-                checkVector (V.map pValueF $ tStatistics lr) [0.0, 0.0]
+                checkVector (V.map pValueF $ LR.tStatistics lr) [0.0, 0.0]
 
         describe "multivariate OLS for 'sales ~ TV + Radio + Newsaper'" $ do
-            let Right modelSpec = M.buildModelSpec
+            let Right cfg = LR.ModelConfig <$> M.buildModelSpec
                     (featureSpace advertisingDataset) "sales" [
                         "TV", "radio", "newspaper"]
-                lr@LinearRegression {..} = linearRegression'
-                    advertisingDataset modelSpec
+                lr@LR.LinearRegression {..} = M.fit cfg advertisingDataset
             it "computes coeffiicents" $ do
                 checkVector lrCoefficients [ 2.939, 0.046, -0.001, 0.189 ]
 
@@ -78,7 +73,7 @@ spec_ISLRLinearRegression = parallel $
                 checkVector lrStandardErrors [0.311908, 0.001395, 0.005871, 0.008611]
 
             it "computes F-Statistics" $
-                fStatistics lr `shouldRoughlyEqual` 570.271
+                LR.fStatistics lr `shouldRoughlyEqual` 570.271
 
             it "computes R^2" $
                 lrR2 `shouldRoughlyEqual` 0.897
@@ -89,13 +84,14 @@ spec_EmptyClassLinearRegression = do
     -- some one-hot encoded class vector is 0, leading to a singular matrix
     -- and no solution to the linear equation
     it "should seemlessly handle empty class variables" $ do
-        let cat      = DS.createFeature "x1" [ "blue", "blue", "blue", "red", "red" ]
-            oth      = DS.createFeature "x2" [ "13", "14", "15", "8", "7" ]
-            yc       = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
-            ds       = DS.createFromFeatures "hspec" [cat, oth, yc]
-            Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-            lrFit    = linearRegression'' (<= 2) ds ms
-        checkVector (lrCoefficients lrFit) [-0.3, 0.1] -- intercept only: color can't be used
+        let cat       = DS.createFeature "x1" [ "blue", "blue", "blue", "red", "red" ]
+            oth       = DS.createFeature "x2" [ "13", "14", "15", "8", "7" ]
+            yc        = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
+            ds        = DS.createFromFeatures "hspec" [cat, oth, yc]
+            Right cfg = LR.ModelConfig <$> M.buildModelSpec (DS.featureSpace ds)
+              "y" ["x1", "x2"]
+            lrFit     = M.fitSome cfg (<= 2) ds
+        checkVector (LR.lrCoefficients lrFit) [-0.3, 0.1] -- intercept only: color can't be used
         checkSingleCol (M.predict' lrFit ds (>=3)) [0.5, 0.4] -- intercept-based estimate
 
 
