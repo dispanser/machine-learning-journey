@@ -90,7 +90,8 @@ fitLinearRegression :: Column Double -> [Column Double] -> ModelSpec -> LinearRe
 fitLinearRegression response inputCols ms =
     let y  = VS.convert . colData $ response
         n  = VS.length y
-        (removedCols, featureCols) = L.partition ((==0.0) . DS.columnVariance) inputCols
+        (removedCols, featureCols) =
+            L.partition ((==0.0) . DS.columnVariance) inputCols
         xs = VS.convert . colData <$> featureCols
         xX = prepareMatrix n xs
         p  = pred $ M.cols xX

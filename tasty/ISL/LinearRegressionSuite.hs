@@ -11,10 +11,27 @@ import qualified ML.Dataset as DS
 import           Control.Monad (zipWithM_)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
-import           ML.LinearRegression (linearRegression', linearRegression'' , LinearRegression (..)
-                                      , tStatistics, pValue, fStatistics)
+import           ML.LinearRegression (linearRegression', linearRegression''
+                                     , LinearRegression (..)
+                                     , tStatistics, pValue, fStatistics)
+import qualified ML.LinearRegressionGD as LRGD
 import qualified Data.Vector.Storable as V
 import           Data.Vector.Storable (Vector)
+import qualified Data.Vector.Unboxed as VU
+
+type LR a = DS.Column Double -> [DS.Column Double] -> M.ModelSpec -> a
+
+spec_babyRegression :: Spec
+spec_babyRegression = do
+    describe "simple linear regression" $ do
+        -- perfect line: y = 2x-1
+        let x  = DS.SingleCol $ DS.Column "x" $ VU.fromList [2.0, 3.0, 4.0 :: Double]
+            y  = DS.SingleCol $ DS.Column "y" $ VU.fromList [3.0, 5.0, 7.0 :: Double]
+            ds = DS.createFromFeatures "hspec" [x, y]
+            Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x"]
+            lr = LRGD.linearRegression' 0.005 ds ms
+        it "should correctly estimate coefficients for some toy problem" $ do
+            checkVector (LRGD.lrCoefficients lr) [-1, 2]
 
 spec_ISLRLinearRegression :: Spec
 spec_ISLRLinearRegression = parallel $
