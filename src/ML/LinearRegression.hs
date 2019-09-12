@@ -5,9 +5,8 @@
 
 module ML.LinearRegression where
 
-import qualified Relude.Unsafe as RU
 import qualified ML.Model as M
-import           ML.Dataset (Feature(..), Column(..), Dataset(..))
+import           ML.Dataset (Feature(..), Column(..))
 import qualified ML.Dataset as DS
 import           ML.Model (ModelSpec(..))
 import qualified Numeric.LinearAlgebra as M
@@ -46,16 +45,8 @@ instance M.Predictor LinearRegression where
               VS.convert . colData <$> cols
   features = features' . lrModelSpec
 
-predictLinearRegression' :: LinearRegression -> Dataset -> DS.ColumnTransformer -> Feature Double
-predictLinearRegression' LinearRegression { .. } ds colTransformer =
-    let featureCols = DS.extractDataColumns ds $ features' lrModelSpec
-        input = VS.convert . colData . colTransformer <$> featureCols
-        olsR  = predictLinearRegression lrCoefficients input
-    in SingleCol . Column lrResponseName . VS.convert $ olsR
-
 instance DS.Summary LinearRegression where
   summary = summarizeLinearRegression
-
 
 summarizeLinearRegression :: LinearRegression -> [T.Text]
 summarizeLinearRegression lr@LinearRegression { .. }  =
@@ -125,14 +116,6 @@ fitLR ms inputCols response =
         lrModelSpec      = ms { features' =  fs' }
     in  LinearRegression { .. }
 
-linearRegression''' :: DS.ColumnTransformer
-                    -> ModelSpec
-                    -> Dataset
-                    -> LinearRegression
-linearRegression''' ct ms ds = fitLR ms featureCols responseCols
- where responseCols = ct $ RU.head $ DS.featureVectors' ds $ response ms
-       featureCols  = ct <$> (DS.extractDataColumns ds $ features' ms)
-
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =
     let n  = fromMaybe 0 $ VS.length . fst <$> uncons xs
@@ -142,9 +125,6 @@ predictLinearRegression bs xs =
           else error $ "number of input columns '" <>
                 show (M.cols xX) <> "' does not match expected '" <>
                     show (VS.length bs) <> "'"
-
-mse :: LinearRegression -> Double
-mse LinearRegression { .. } = lrRss / fromIntegral n
 
 tStatistics :: LinearRegression -> Vector Double
 tStatistics LinearRegression { .. } = abs $ lrCoefficients / lrStandardErrors

@@ -19,7 +19,7 @@ import qualified Data.Vector.Unboxed as VU
 
 spec_babyRegression :: Spec
 spec_babyRegression = do
-    describe "gradient-descent based linear regression" $ do
+    describe "linear-solver based  linear regression" $ do
         babyRegression (LR.fitLinearRegression)
     describe "gradient-descent based linear regression" $ do
         babyRegression (LRGD.linearRegressionGD . LRGD.ModelConfig 0.005 (LRGD.maxIterations 10000))

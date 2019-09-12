@@ -14,8 +14,6 @@ import qualified Relude.Unsafe as RU
 import qualified Data.Text as T
 import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
-import           ML.Dataset (Dataset(..))
-import qualified ML.Dataset as DS
 import           ML.Dataset (Feature(..), Column(..))
 import qualified ML.Model as MM
 import           ML.Model (ModelSpec(..), Predictor(..))
@@ -125,12 +123,3 @@ rssDeltaBelow threshold (dRss -> dRss) = threshold < abs dRss
 
 maxIterations :: Int -> TrainingFinished
 maxIterations n (iter -> n1) = n >= n1
-
-linearRegression''' :: DS.ColumnTransformer
-                    -> ModelConfig
-                    -> Dataset
-                    -> LinearRegressionGD
-linearRegression''' ct cfg ds = fitLinearRegression cfg responseCols featureCols
- where responseCols = ct $ RU.head $ DS.featureVectors' ds $ response (modelSpec cfg)
-       featureCols  = ct <$> (DS.extractDataColumns ds $ features' (modelSpec cfg))
-

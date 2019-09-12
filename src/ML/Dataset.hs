@@ -181,10 +181,6 @@ featureName :: Feature a -> Text
 featureName (SingleCol Column { .. })      = colName
 featureName (MultiCol  Categorical { .. }) = className
 
-columnNames :: Feature a -> [Text]
-columnNames (SingleCol Column { .. })      = [colName]
-columnNames (MultiCol  Categorical { .. }) = colName <$> features
-
 featureSize :: V.Unbox a => Feature a -> Int
 featureSize (SingleCol col)                = colSize col
 featureSize (MultiCol  Categorical { .. }) = maybe 0 colSize $ listToMaybe features
@@ -192,12 +188,6 @@ featureSize (MultiCol  Categorical { .. }) = maybe 0 colSize $ listToMaybe featu
 featureVectors :: Feature a -> [Vector a]
 featureVectors (SingleCol Column { .. })     = [colData]
 featureVectors (MultiCol Categorical { .. }) = colData <$> features
-
-featureVector :: Feature a -> Vector a
-featureVector (SingleCol Column { .. })     = colData
-featureVector (MultiCol Categorical { .. }) =
-    error $ "trying to extract a single feature from categorical column '"
-        <> className <> "'"
 
 featureColumn :: Feature a -> Column a
 featureColumn (SingleCol c)     = c
