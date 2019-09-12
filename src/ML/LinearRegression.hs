@@ -24,9 +24,6 @@ import           Data.Vector.Storable (Vector)
 import           Statistics.Distribution.StudentT (studentT)
 import           Statistics.Distribution (complCumulative)
 
-data ModelConfig = ModelConfig
-    { modelSpec :: ModelSpec } deriving Show
-
 data LinearRegression = LinearRegression
     { lrFeatureNames   :: [T.Text]
     , lrResponseName   :: T.Text
@@ -42,14 +39,12 @@ data LinearRegression = LinearRegression
     , lrModelSpec      :: ModelSpec
     }
 
-instance M.ModelFit ModelConfig LinearRegression where
-  -- fit :: ModelConfig -> Dataset -> LinearRegression
-  fit            = linearRegression''' identity
-  fitSome cfg rs = linearRegression''' (DS.filterDataColumn rs) cfg
-
 instance M.Predictor LinearRegression where
-  predict  lr ds    = predictLinearRegression' lr ds id
-  predict' lr ds rs = predictLinearRegression' lr ds $ DS.filterDataColumn rs
+  predict   LinearRegression { .. } cols  =
+      SingleCol . Column lrResponseName $ VS.convert $
+          predictLinearRegression lrCoefficients $
+              VS.convert . colData <$> cols
+  features = features' . lrModelSpec
 
 predictLinearRegression' :: LinearRegression -> Dataset -> DS.ColumnTransformer -> Feature Double
 predictLinearRegression' LinearRegression { .. } ds colTransformer =
@@ -60,6 +55,7 @@ predictLinearRegression' LinearRegression { .. } ds colTransformer =
 
 instance DS.Summary LinearRegression where
   summary = summarizeLinearRegression
+
 
 summarizeLinearRegression :: LinearRegression -> [T.Text]
 summarizeLinearRegression lr@LinearRegression { .. }  =
@@ -95,8 +91,13 @@ formatCoefficientInfo df name x err =
         (Scientific.fromFloatDigits x)
         (Scientific.fromFloatDigits err) tStat pV
 
-fitLinearRegression :: Column Double -> [Column Double] -> ModelSpec -> LinearRegression
-fitLinearRegression response inputCols ms =
+fitLinearRegression :: ModelSpec -> M.ModelInit LinearRegression
+fitLinearRegression ms = M.ModelInit
+    { fitF      = fitLR ms
+    , modelSpec = ms }
+
+fitLR :: ModelSpec -> M.FitF LinearRegression
+fitLR ms inputCols response =
     let y  = VS.convert . colData $ response
         n  = VS.length y
         (removedCols, featureCols) =
@@ -125,10 +126,10 @@ fitLinearRegression response inputCols ms =
     in  LinearRegression { .. }
 
 linearRegression''' :: DS.ColumnTransformer
-                    -> ModelConfig
+                    -> ModelSpec
                     -> Dataset
                     -> LinearRegression
-linearRegression''' ct (modelSpec -> ms) ds = fitLinearRegression responseCols featureCols ms
+linearRegression''' ct ms ds = fitLR ms featureCols responseCols
  where responseCols = ct $ RU.head $ DS.featureVectors' ds $ response ms
        featureCols  = ct <$> (DS.extractDataColumns ds $ features' ms)
 

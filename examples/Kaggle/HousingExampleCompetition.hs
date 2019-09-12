@@ -29,21 +29,19 @@ main = do
     housingTestDS <- createDataset "data/housing/test.csv"
 
     let Right ms  = M.buildModelSpec (DS.featureSpace housingDS) "SalePrice" cols
-        cfg       = OLS.ModelConfig ms
-        lrFit     = M.fit cfg housingDS :: OLS.LinearRegression
+        lrModel   = OLS.fitLinearRegression ms
+        lrFit     = M.fitDataset lrModel housingDS
 
     mapM_ print $ DS.summary lrFit
 
-    let fitMethod = M.fitSome cfg :: DS.RowSelector -> DS.Dataset -> OLS.LinearRegression
-
-    let valMSE = MV.validateModel fitMethod 1 housingDS ms
+    let valMSE = MV.validateModel lrModel 1 housingDS
     putStrLn $ "validation set MSE: " <> show valMSE
 
-    let kFoldMSE = MV.kFoldModel fitMethod 1 5 housingDS ms
+    let kFoldMSE = MV.kFoldModel lrModel 1 5 housingDS
     putStrLn $ "5-fold cross validation MSE: " <> show kFoldMSE
 
     let Just idCol = (DS.colByName' housingTestDS) "Id"
-        prediction = DS.featureColumn $ M.predict lrFit housingTestDS
+        prediction = DS.featureColumn $ M.predictDataset lrFit housingTestDS
 
     writeCsv "./submission.csv"
       [ (idCol, show . (round :: Double -> Int))

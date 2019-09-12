@@ -19,25 +19,34 @@ import qualified Data.Vector.Unboxed as VU
 
 spec_babyRegression :: Spec
 spec_babyRegression = do
-    describe "simple linear regression" $ do
+    describe "gradient-descent based linear regression" $ do
+        babyRegression (LR.fitLinearRegression)
+    describe "gradient-descent based linear regression" $ do
+        babyRegression (LRGD.linearRegressionGD . LRGD.ModelConfig 0.005 (LRGD.maxIterations 10000))
+
+babyRegression :: M.Predictor a => (M.ModelSpec -> M.ModelInit a) -> Spec
+babyRegression cfgF = do
+    describe "on some toy example" $ do
         -- perfect line: y = 2x-1
-        let x        = DS.SingleCol $ DS.Column "x" $ VU.fromList [2.0, 3.0, 4.0 :: Double]
-            y        = DS.SingleCol $ DS.Column "y" $ VU.fromList [3.0, 5.0, 7.0 :: Double]
-            ds       = DS.createFromFeatures "hspec" [x, y]
-            Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x"]
-            cfg      = LRGD.ModelConfig 0.005 (LRGD.maxIterations 10000) ms
-            lr       = M.fit cfg ds
-        it "should correctly estimate coefficients for some toy problem" $ do
-            checkVector (LRGD.lrCoefficients lr) [-1, 2]
+        let x         = DS.SingleCol $ DS.Column "x" $ VU.fromList [2.0, 3.0, 4.0 :: Double]
+            y         = DS.SingleCol $ DS.Column "y" $ VU.fromList [3.0, 5.0, 7.0 :: Double]
+            xTest     = DS.Column "x" $ VU.fromList [0.0, 1.0, 2.0, 3.0, 4.0, 5.0 :: Double]
+            ds        = DS.createFromFeatures "hspec" [x, y]
+            Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x"]
+            predictor = M.fitDataset (cfgF ms) ds
+        it "should correctly predict an unseen point" $ do -- black-box testing
+            let res = DS.colData $ DS.featureColumn $ M.predict predictor [xTest]
+            checkVector (V.convert res) [-1, 1 .. 9]
 
 spec_ISLRLinearRegression :: Spec
 spec_ISLRLinearRegression = parallel $
     describe "Adertising dataset, ISLR chapter 3:" $ do
         advertisingDataset <- runIO $ createDataset "data/Advertising.csv"
         describe "simple linear regression for 'sales ~ TV'" $ do
-            let Right cfg = LR.ModelConfig <$> M.buildModelSpec
+            let Right ms = M.buildModelSpec
                     (featureSpace advertisingDataset) "sales" ["TV"]
-                lr@LR.LinearRegression {..} = M.fit cfg advertisingDataset
+                model = LR.fitLinearRegression ms
+                lr@LR.LinearRegression {..} = M.fitDataset model advertisingDataset
             it "computes coefficients" $
                 checkVector lrCoefficients   [7.0325, 0.0475]
 
@@ -59,10 +68,11 @@ spec_ISLRLinearRegression = parallel $
                 checkVector (V.map pValueF $ LR.tStatistics lr) [0.0, 0.0]
 
         describe "multivariate OLS for 'sales ~ TV + Radio + Newsaper'" $ do
-            let Right cfg = LR.ModelConfig <$> M.buildModelSpec
+            let Right ms = M.buildModelSpec
                     (featureSpace advertisingDataset) "sales" [
                         "TV", "radio", "newspaper"]
-                lr@LR.LinearRegression {..} = M.fit cfg advertisingDataset
+                model = LR.fitLinearRegression ms
+                lr@LR.LinearRegression {..} = M.fitDataset model advertisingDataset
             it "computes coeffiicents" $ do
                 checkVector lrCoefficients [ 2.939, 0.046, -0.001, 0.189 ]
 
@@ -84,15 +94,15 @@ spec_EmptyClassLinearRegression = do
     -- some one-hot encoded class vector is 0, leading to a singular matrix
     -- and no solution to the linear equation
     it "should seemlessly handle empty class variables" $ do
-        let cat       = DS.createFeature "x1" [ "blue", "blue", "blue", "red", "red" ]
-            oth       = DS.createFeature "x2" [ "13", "14", "15", "8", "7" ]
-            yc        = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
-            ds        = DS.createFromFeatures "hspec" [cat, oth, yc]
-            Right cfg = LR.ModelConfig <$> M.buildModelSpec (DS.featureSpace ds)
-              "y" ["x1", "x2"]
-            lrFit     = M.fitSome cfg (<= 2) ds
+        let cat      = DS.createFeature "x1" [ "blue", "blue", "blue", "red", "red" ]
+            oth      = DS.createFeature "x2" [ "13", "14", "15", "8", "7" ]
+            yc       = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
+            ds       = DS.createFromFeatures "hspec" [cat, oth, yc]
+            Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+            model     = LR.fitLinearRegression ms
+            lrFit     = M.fitSubset model (<= 2) ds
         checkVector (LR.lrCoefficients lrFit) [-0.3, 0.1] -- intercept only: color can't be used
-        checkSingleCol (M.predict' lrFit ds (>=3)) [0.5, 0.4] -- intercept-based estimate
+        checkSingleCol (M.predictSubset lrFit (>=3) ds) [0.5, 0.4] -- intercept-based estimate
 
 
 shouldRoughlyEqual :: (Show a, Num a, Ord a, Fractional a) => a -> a -> IO ()

@@ -16,8 +16,9 @@ import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
 import           ML.Dataset (Dataset(..))
 import qualified ML.Dataset as DS
-import           ML.Model (ModelSpec(..), ModelFit(..))
-import           ML.Dataset (Column(..))
+import           ML.Dataset (Feature(..), Column(..))
+import qualified ML.Model as MM
+import           ML.Model (ModelSpec(..), Predictor(..))
 import qualified ML.LinearRegression as OLS
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, (#>), (<#), (<.>))
@@ -55,11 +56,19 @@ data ModelConfig = ModelConfig
     , modelSpec  :: ModelSpec
     }
 
-instance ModelFit ModelConfig LinearRegressionGD where
-  fit            = linearRegression''' identity
-  fitSome cfg rs = linearRegression''' (DS.filterDataColumn rs) cfg
+instance Predictor LinearRegressionGD where
+  predict   LinearRegressionGD { .. } cols  =
+      SingleCol . Column lrResponseName $ VS.convert $
+          OLS.predictLinearRegression lrCoefficients $
+              VS.convert . colData <$> cols
+  features = features' . lrModelSpec
 
 type Coefficients = Vector Double
+
+linearRegressionGD :: ModelConfig -> MM.ModelInit LinearRegressionGD
+linearRegressionGD cfg = MM.ModelInit
+    { fitF      = flip (fitLinearRegression cfg)
+    , modelSpec = modelSpec cfg }
 
 fitLinearRegression :: ModelConfig
                     -> Column Double
@@ -77,8 +86,7 @@ fitLinearRegression cfg response inputCols =
         step'            = step (learnRate cfg) xX y
         initialState     = TrainingState (VS.replicate (succ p) 0.0) lrTss lrTss 0
         stateSeq         = iterate step' initialState
-        finalState       = RU.head $
-            dropWhile (maxIterations 8000) stateSeq
+        finalState       = RU.head $ dropWhile (finishPred cfg) stateSeq
             -- dropWhile (rssDeltaBelow 0.0000000003) stateSeq
         lrCoefficients   = coefficients finalState
         residuals        = y - OLS.predictLinearRegression lrCoefficients xs

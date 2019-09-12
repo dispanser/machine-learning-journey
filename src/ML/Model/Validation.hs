@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module ML.Model.Validation
     ( kFoldSplit
     , validationSetSplit
@@ -30,36 +32,27 @@ kFoldSplit seed n k =
 negateRowSelector :: RowSelector -> RowSelector
 negateRowSelector rs = \i -> not (rs i)
 
--- fit a model based on the provided input, splitting the data into training and
--- validation set based on the provided seed. Note: split is 50 / 50.
-validateModel :: M.Predictor a =>
-    (RowSelector -> Dataset -> a) -> Int -> Dataset -> M.ModelSpec -> Double
-validateModel modelFit seed ds ms =
-    let n         = DS.dsNumRows' ds
-        trainRows = DS.rowSelectorFromList $ validationSetSplit seed n
-    in runWithTestSet modelFit ds trainRows ms
-
-kFoldModel :: M.Predictor a =>
-    (RowSelector -> Dataset -> a) ->
-        Int -> Int -> Dataset -> M.ModelSpec -> Double
-kFoldModel fit seed k ds ms =
+kFoldModel :: M.Predictor a => M.ModelInit a -> Int -> Int -> Dataset -> Double
+kFoldModel mi@M.ModelInit { .. } seed k ds =
     let n          = DS.dsNumRows' ds
         folds      = kFoldSplit seed n k
         fitFold k' = let trainRowS = DS.rowSelectorFromList ((/= k') <$> folds)
-                     in runWithTestSet fit ds trainRowS ms
+                     in runWithTestSet mi ds trainRowS
     in sum (fitFold <$> [0..k-1]) / fromIntegral k
 
--- row selector selects the rows used for training the model. The negation
--- yields the rows that are used for computing the prediction error
-runWithTestSet :: M.Predictor a => (RowSelector -> Dataset -> a)
-               -> Dataset -> RowSelector -> M.ModelSpec -> Double
-runWithTestSet fit ds rs ms =
-    let mFit         = fit rs ds
+validateModel :: M.Predictor a => M.ModelInit a -> Int -> Dataset -> Double
+validateModel modelFit seed ds =
+    let n         = DS.dsNumRows' ds
+        trainRows = DS.rowSelectorFromList $ validationSetSplit seed n
+    in runWithTestSet modelFit ds trainRows
+
+runWithTestSet :: M.Predictor a => M.ModelInit a -> Dataset -> RowSelector -> Double
+runWithTestSet mi@M.ModelInit { .. } ds rs =
+    let mFit         = M.fitSubset mi rs ds
         testRS       = negateRowSelector rs
-        prediction   = RU.head $ DS.featureVectors $ M.predict' mFit ds testRS
+        prediction   = RU.head $ DS.featureVectors $ M.predictSubset mFit testRS ds
         testResponse = DS.colData . DS.filterDataColumn testRS $
-            M.extractResponseVector ds ms
+            M.extractResponseVector ds modelSpec
         testError    = V.sum $ V.map (^(2::Int)) $ V.zipWith (-)
             prediction testResponse
     in testError / fromIntegral (V.length prediction)
-
