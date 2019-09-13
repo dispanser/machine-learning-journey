@@ -38,6 +38,111 @@ babyRegression cfgF = do
             let res = DS.colData $ DS.featureColumn $ M.predict predictor [xTest]
             checkVector (V.convert res) [-1, 1 .. 9]
 
+spec_TestingRescalingBehavior :: Spec
+spec_TestingRescalingBehavior = do
+    describe "baseline" $ do
+        let x1Data = VU.fromList [5.0, 4.0, 4.5, 7, 13]
+            x2Data = VU.fromList [8, 18, 9, 4, 3]
+            yData  = VU.fromList [4, 6, 4, 3, 2]
+            b0 = 2.962
+            b1 = -0.1164
+            b2 = 0.192606
+        it "should compute some coefficients" $ do
+            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
+                x2        = DS.SingleCol $ DS.Column "x2" x2Data
+                y         = DS.SingleCol $ DS.Column "y"  yData
+                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
+                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
+            checkVector (LR.coefficients lrModel) [b0, b1, b2]
+        it "should halve b2 when scaling column 2 up by 2" $ do
+            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
+                x2        = DS.SingleCol $ DS.Column "x2" $ VU.map (*2) x2Data
+                y         = DS.SingleCol $ DS.Column "y"  yData
+                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
+                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
+            checkVector (LR.coefficients lrModel) [b0, b1, b2 / 2]
+        it "should substract b2 from b0 when shifting column 2 up by 1" $ do
+            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
+                x2        = DS.SingleCol $ DS.Column "x2" $ VU.map (+1) x2Data
+                y         = DS.SingleCol $ DS.Column "y"  yData
+                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
+                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
+            checkVector (LR.coefficients lrModel) [b0 - b2, b1, b2]
+        it "should adapt b0 and b2 without touching b1 on linear transformation of x2" $ do
+            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
+                x2        = DS.SingleCol $ DS.Column "x2" $ VU.map ((/3) . (subtract 5)) x2Data
+                y         = DS.SingleCol $ DS.Column "y"  yData
+                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
+                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
+            checkVector (LR.coefficients lrModel) [b0+5*b2, b1, 3*b2]
+        it "should adapt all of beta when multiplying y with a scalar" $ do
+            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
+                x2        = DS.SingleCol $ DS.Column "x2" x2Data
+                y         = DS.SingleCol $ DS.Column "y"  $ VU.map (/3) yData
+                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
+                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
+            checkVector (LR.coefficients lrModel) $ (/3) <$> [b0, b1, b2]
+        it "should adapt intercept when shifting y" $ do
+            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
+                x2        = DS.SingleCol $ DS.Column "x2" x2Data
+                y         = DS.SingleCol $ DS.Column "y"  $ VU.map (+3) yData
+                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
+                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
+            checkVector (LR.coefficients lrModel) [b0 + 3, b1, b2]
+        it "should do something to all of you  y" $ do
+            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
+                x2        = DS.SingleCol $ DS.Column "x2" x2Data
+                y         = DS.SingleCol $ DS.Column "y"  $ VU.map ((/7) . subtract 3) yData
+                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
+                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
+            checkVector (LR.coefficients lrModel) $ (/7) <$> [b0 - 3, b1, b2]
+
+spec_ISLRLinearRegressionGD :: Spec
+spec_ISLRLinearRegressionGD = parallel $
+    describe "LR Gradient descent: Adertising dataset, ISLR chapter 3:" $ do
+        advertisingDataset <- runIO $ createDataset "data/Advertising.csv"
+        describe "simple linear regression for 'sales ~ TV'" $ do
+            let Right ms = M.buildModelSpec
+                    (featureSpace advertisingDataset) "sales" ["TV"]
+                model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.0000003 (LRGD.maxIterations 600000) ms
+                lr@LRGD.LinearRegressionGD {..} = M.fitDataset model advertisingDataset
+            runIO $ print lr
+            it "computes coefficients" $
+                checkVector (LR.coefficients lr) [7.0325, 0.0475]
+
+            it "computes rse" $
+                LR.rse lr `shouldRoughlyEqual` 3.258
+
+            it "computes R^2" $
+                LR.r2 lr `shouldRoughlyEqual` 0.612
+        describe "applying feature scaling" $ do
+            let Just tvFeat    = DS.rescaleColumn <$> (colByName' advertisingDataset) "TV"
+                Just salesFeat = DS.rescaleColumn <$> (colByName' advertisingDataset) "sales"
+                scaledDS       = DS.createFromFeatures "scaled advertising"
+                    [DS.SingleCol . DS.rawColumn $ tvFeat, DS.SingleCol . DS.rawColumn $ salesFeat]
+            let Right ms = M.buildModelSpec
+                    (featureSpace scaledDS) "sales" ["TV"]
+                model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005 (LRGD.maxIterations 40) ms
+                lr@LRGD.LinearRegressionGD {..} = M.fitDataset model scaledDS
+            runIO $ print $ "tv' = (tv - " ++ show (DS.scaleOffset tvFeat) ++ ") / " ++ show (DS.scaleFactor tvFeat)
+            it "computes coefficients" $
+                checkVector (LR.coefficients lr) [7.0325, 0.0475]
+
+            it "computes rse" $
+                LR.rse lr `shouldRoughlyEqual` 3.258
+
+            it "computes R^2" $
+                LR.r2 lr `shouldRoughlyEqual` 0.612
+
+
+
 spec_ISLRLinearRegression :: Spec
 spec_ISLRLinearRegression = parallel $
     describe "Adertising dataset, ISLR chapter 3:" $ do
@@ -53,11 +158,11 @@ spec_ISLRLinearRegression = parallel $
             it "computes rse" $
                 LR.rse lr `shouldRoughlyEqual` 3.258
 
-            it "computes standard errors" $
-                checkVector lrStandardErrors [0.4578, 0.0027]
-
             it "computes R^2" $
                 LR.r2 lr `shouldRoughlyEqual` 0.612
+
+            it "computes standard errors" $
+                checkVector lrStandardErrors [0.4578, 0.0027]
 
             it "computes t-statistics" $
                 checkVector (LR.tStatistics lr) [15.36, 17.667]
@@ -94,16 +199,16 @@ spec_EmptyClassLinearRegression = do
     -- some one-hot encoded class vector is 0, leading to a singular matrix
     -- and no solution to the linear equation
     describe "linear-solver based  linear regression" $ do
-    it "should seemlessly handle empty class variables" $ do
-        let cat      = DS.createFeature "x1" [ "blue", "blue", "blue", "red", "red" ]
-            oth      = DS.createFeature "x2" [ "13", "14", "15", "8", "7" ]
-            yc       = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
-            ds       = DS.createFromFeatures "hspec" [cat, oth, yc]
-            Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-            model    = LR.fitLinearRegression ms
-            lrFit    = M.fitSubset model (<= 2) ds
-        checkVector (LR.coefficients lrFit) [-0.3, 0.1] -- intercept only: color can't be used
-        checkSingleCol (M.predictSubset lrFit (>=3) ds) [0.5, 0.4] -- intercept-based estimate
+        it "should seemlessly handle empty class variables" $ do
+            let cat      = DS.createFeature "x1" [ "blue", "blue", "blue", "red", "red" ]
+                oth      = DS.createFeature "x2" [ "13", "14", "15", "8", "7" ]
+                yc       = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
+                ds       = DS.createFromFeatures "hspec" [cat, oth, yc]
+                Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
+                model    = LR.fitLinearRegression ms
+                lrFit    = M.fitSubset model (<= 2) ds
+            checkVector (LR.coefficients lrFit) [-0.3, 0.1] -- intercept and oth only
+            checkSingleCol (M.predictSubset lrFit (>=3) ds) [0.5, 0.4]
 
 shouldRoughlyEqual :: (Show a, Num a, Ord a, Fractional a) => a -> a -> IO ()
 shouldRoughlyEqual actual expected = actual `shouldSatisfy` roughlyEqual expected

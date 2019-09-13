@@ -28,6 +28,7 @@ import qualified Formatting.ShortFormatters as F
 import           Formatting ((%), (%.))
 import qualified Statistics.Quantile as Q
 import qualified Statistics.Sample as S
+import           Statistics.Function (minMax)
 
 class Summary a where
   summary :: a -> [Text]
@@ -87,6 +88,12 @@ data Categorical a = Categorical
 data Feature a = SingleCol (Column a)
                | MultiCol  (Categorical a) deriving (Eq, Show)
 
+data ScaledColumn  = ScaledColumn
+    { rawColumn   :: Column Double
+    , scaleOffset :: Double
+    , scaleFactor :: Double
+    } deriving Show
+
 instance Summary (Feature Double) where
   summary (SingleCol col) = summary col
   summary (MultiCol cat ) = summary cat
@@ -123,6 +130,22 @@ createFromFeatures name feats =
         colByName' c = whenNothing (M.lookup c columnIndex) (findMissingClass c)
         featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
     in Dataset { .. }
+
+rescaleColumn :: Column Double -> ScaledColumn
+rescaleColumn c@(colData -> xs) =
+    let (minV, maxV) = minMax xs
+        range        = maxV - minV
+    in ScaledColumn
+        { rawColumn   = c { colData =  VG.map (\x -> (x - minV) / range) xs}
+        , scaleOffset = minV   -- -minV, to be pedantic
+        , scaleFactor = range  -- 1/range, to be pedantic
+        }
+
+rescale01 :: VG.Vector v Double => v Double -> v Double
+rescale01 xs =
+    let (minV, maxV) = minMax xs
+        range        = maxV - minV
+    in VG.map (\x -> (x - minV) / range) xs
 
 -- column variance.
 columnVariance :: Column Double -> Double
@@ -278,7 +301,6 @@ summarizeCategorical c@Categorical { .. } =
             (T.drop featNameLength colName)
             (round $ V.sum colData)
             (dSc $ 100.0*(V.sum colData)/size)
-
         texts = fc <$> baseFeat:features
     in F.sformat (textF 13) className <> (T.intercalate " | " $ texts)
 
