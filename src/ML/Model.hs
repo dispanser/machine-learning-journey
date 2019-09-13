@@ -16,20 +16,19 @@ import           Data.Text (Text)
 -- initial stub type for prediction result: the column vector of response
 type Prediction = Feature Double
 
-newtype PredF a = PredF (a -> [Column Double])
 type FitF  a = [Column Double] -> Column Double -> a
 
 data ModelInit a = ModelInit
     { fitF      :: FitF a
     , modelSpec :: ModelSpec }
 
-class Model a where
+class Predictor a => Model a where
   features :: a -> FeatureSpace
 
 -- something that can make predictions. It also knows the feature space,
 -- because that helps writing generic functions that directly work on dataset
-class Model a => Predictor a where
-  predict   :: a -> [Column Double]        -> Prediction
+class Predictor a where
+  predict :: a -> [Column Double] -> Prediction
 
 data ModelSpec = ModelSpec
     { features' :: FeatureSpace
@@ -46,14 +45,14 @@ fit' ModelInit { .. } ct ds = fitF featureCols responseCol
  where responseCol = ct $ RU.head $ DS.featureVectors' ds $ response modelSpec
        featureCols = ct <$> (DS.extractDataColumns ds $ features' modelSpec)
 
-predictDataset :: Predictor a => a -> Dataset -> Prediction
+predictDataset :: Model a => a -> Dataset -> Prediction
 predictDataset pr = predict' pr identity
 
-predict' :: Predictor a => a -> DS.ColumnTransformer -> Dataset -> Prediction
+predict' :: Model a => a -> DS.ColumnTransformer -> Dataset -> Prediction
 predict' pr ct ds = predict pr featureCols
  where featureCols = ct <$> (DS.extractDataColumns ds $ features pr)
 
-predictSubset :: Predictor a => a -> DS.RowSelector -> Dataset -> Prediction
+predictSubset :: Model a => a -> DS.RowSelector -> Dataset -> Prediction
 predictSubset pr rs = predict' pr $ DS.filterDataColumn rs
 
 buildModelSpec :: FeatureSpace -> Text -> [Text] -> Either Text ModelSpec

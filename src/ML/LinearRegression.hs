@@ -38,7 +38,7 @@ data LinearRegression = LinearRegression
 
 -- not everything is actually restricted to linear model, but that's all
 -- we got for now
-class M.Predictor a => LinearModel a where
+class M.Model a => LinearModel a where
   coefficients    :: a -> Vector Double
   rss             :: a -> Double
   tss             :: a -> Double

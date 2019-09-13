@@ -32,7 +32,7 @@ kFoldSplit seed n k =
 negateRowSelector :: RowSelector -> RowSelector
 negateRowSelector rs = \i -> not (rs i)
 
-kFoldModel :: M.Predictor a => M.ModelInit a -> Int -> Int -> Dataset -> Double
+kFoldModel :: M.Model a => M.ModelInit a -> Int -> Int -> Dataset -> Double
 kFoldModel mi@M.ModelInit { .. } seed k ds =
     let n          = DS.dsNumRows' ds
         folds      = kFoldSplit seed n k
@@ -40,13 +40,13 @@ kFoldModel mi@M.ModelInit { .. } seed k ds =
                      in runWithTestSet mi ds trainRowS
     in sum (fitFold <$> [0..k-1]) / fromIntegral k
 
-validateModel :: M.Predictor a => M.ModelInit a -> Int -> Dataset -> Double
+validateModel :: M.Model a => M.ModelInit a -> Int -> Dataset -> Double
 validateModel modelFit seed ds =
     let n         = DS.dsNumRows' ds
         trainRows = DS.rowSelectorFromList $ validationSetSplit seed n
     in runWithTestSet modelFit ds trainRows
 
-runWithTestSet :: M.Predictor a => M.ModelInit a -> Dataset -> RowSelector -> Double
+runWithTestSet :: M.Model a => M.ModelInit a -> Dataset -> RowSelector -> Double
 runWithTestSet mi@M.ModelInit { .. } ds rs =
     let mFit         = M.fitSubset mi rs ds
         testRS       = negateRowSelector rs
