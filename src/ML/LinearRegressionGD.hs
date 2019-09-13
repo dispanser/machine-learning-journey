@@ -10,6 +10,7 @@
 
 module ML.LinearRegressionGD where
 
+import           GHC.Show (Show(..))
 import qualified Relude.Unsafe as RU
 import qualified Data.Text as T
 import qualified Data.Vector.Storable as VS
@@ -32,9 +33,8 @@ data LinearRegressionGD = LinearRegressionGD
     , lrDF             :: Int
     , n                :: Int
     , p                :: Int
-    , lrModelSpec      :: ModelSpec -- TODO: remove!
     , cfg              :: ModelConfig
-    }
+    } deriving Show
 
 type LearningRate = Double
 
@@ -52,6 +52,10 @@ data ModelConfig = ModelConfig
     , modelSpec  :: ModelSpec
     }
 
+instance Show ModelConfig where
+  show ModelConfig { .. } = "ModelConfig{α=" <> GHC.Show.show learnRate <>
+      " spec=" <> GHC.Show.show modelSpec <>  "}"
+
 instance LR.LinearModel LinearRegressionGD where
   coefficients    = lrCoefficients
   rss             = lrRss
@@ -59,7 +63,7 @@ instance LR.LinearModel LinearRegressionGD where
   degreesOfFredom = fromIntegral . lrDF
 
 instance MM.Model LinearRegressionGD where
-  features = features' . lrModelSpec
+  features = features' . modelSpec . cfg
 
 instance Predictor LinearRegressionGD where
   predict   LinearRegressionGD { .. } cols  =
@@ -98,7 +102,6 @@ fitLinearRegression cfg response inputCols =
             M.inv . M.unSym $ M.mTm xX) ** 0.5
         lrResponseName   = colName response
         lrFeatureNames   = colName <$> inputCols
-        lrModelSpec      = modelSpec cfg
     in LinearRegressionGD { .. }
 
 step :: LearningRate
