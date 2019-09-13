@@ -28,8 +28,6 @@ data LinearRegression = LinearRegression
     , lrResponseName   :: T.Text
     , lrCoefficients   :: Vector Double
     , lrStandardErrors :: Vector Double
-    , lrRse            :: Double
-    , lrR2             :: Double
     , lrTss            :: Double
     , lrRss            :: Double
     , lrDF             :: Int
@@ -38,12 +36,28 @@ data LinearRegression = LinearRegression
     , lrModelSpec      :: ModelSpec
     }
 
+-- not everything is actually restricted to linear model, but that's all
+-- we got for now
+class M.Predictor a => LinearModel a where
+  coefficients    :: a -> Vector Double
+  rss             :: a -> Double
+  tss             :: a -> Double
+  degreesOfFredom :: a -> Double
+
+instance LinearModel LinearRegression where
+  coefficients    = lrCoefficients
+  rss             = lrRss
+  tss             = lrTss
+  degreesOfFredom = fromIntegral . lrDF
+
+instance M.Model LinearRegression where
+  features = features' . lrModelSpec
+
 instance M.Predictor LinearRegression where
   predict   LinearRegression { .. } cols  =
       SingleCol . Column lrResponseName $ VS.convert $
           predictLinearRegression lrCoefficients $
               VS.convert . colData <$> cols
-  features = features' . lrModelSpec
 
 instance DS.Summary LinearRegression where
   summary = summarizeLinearRegression
@@ -58,7 +72,7 @@ summarizeLinearRegression lr@LinearRegression { .. }  =
             (V.fromList $ "Intercept" : lrFeatureNames)
             (V.convert lrCoefficients) (V.convert lrStandardErrors)) ++
         [ ""
-        , F.sformat ("R^2         : " % F.fixed 4) lrR2
+        , F.sformat ("R^2         : " % F.fixed 4) (r2 lr)
         , F.sformat ("F-Statistics: " % F.fixed 4) $ fStatistics lr]
 
 -- format the features and response used for the regression, R-style
@@ -100,16 +114,14 @@ fitLR ms inputCols response =
         -- TODO: ugly as hell
         lrCoefficients   = fromMaybe VS.empty $ listToMaybe $
             M.toColumns $ M.linearSolveLS xX $ M.fromColumns [y]
-        residuals        = y - predictLinearRegression lrCoefficients xs
+        residuals        = y - xX #> lrCoefficients
         lrRss            = residuals <.> residuals
         yMean            = MS.mean y
         yDelta           = y - (VS.replicate n yMean)
         lrTss            = yDelta <.> yDelta
-        lrMse            = lrRss / fromIntegral (n - p - 1)
-        lrRse            = sqrt lrMse
-        lrStandardErrors = M.takeDiag $ M.scale lrMse (
+        mse'             = lrRss / fromIntegral lrDF
+        lrStandardErrors = M.takeDiag $ M.scale mse' (
             M.inv . M.unSym $ M.mTm xX) ** 0.5
-        lrR2             = 1 - lrRss/lrTss
         lrResponseName   = colName response
         lrFeatureNames   = colName <$> inputCols
         fs'              = (features' ms) { DS.ignoredCols = colName <$> removedCols }
@@ -129,8 +141,19 @@ predictLinearRegression bs xs =
 tStatistics :: LinearRegression -> Vector Double
 tStatistics LinearRegression { .. } = abs $ lrCoefficients / lrStandardErrors
 
-fStatistics :: LinearRegression -> Double
-fStatistics LinearRegression { .. } = (lrTss - lrRss) / fromIntegral p / lrRss * fromIntegral lrDF
+fStatistics :: LinearModel a => a -> Double
+fStatistics m =
+    (tss m - rss m) / (fromIntegral . pred . VS.length $ coefficients m)
+        / rss m * degreesOfFredom m
+
+mse :: LinearModel a => a -> Double
+mse m = rss m / degreesOfFredom m
+
+rse :: LinearModel a => a -> Double
+rse            = sqrt . mse
+
+r2 :: LinearModel a => a -> Double
+r2 m = 1 - rss m / tss m
 
 pValue :: Double -> Double -> Double
 pValue df v =

@@ -17,7 +17,7 @@ import           Data.Vector.Storable (Vector)
 import           ML.Dataset (Feature(..), Column(..))
 import qualified ML.Model as MM
 import           ML.Model (ModelSpec(..), Predictor(..))
-import qualified ML.LinearRegression as OLS
+import qualified ML.LinearRegression as LR
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, (#>), (<#), (<.>))
 import qualified Numeric.Morpheus.Statistics as MS
@@ -27,8 +27,6 @@ data LinearRegressionGD = LinearRegressionGD
     , lrResponseName   :: T.Text
     , lrCoefficients   :: Vector Double
     , lrStandardErrors :: Vector Double
-    , lrRse            :: Double
-    , lrR2             :: Double
     , lrTss            :: Double
     , lrRss            :: Double
     , lrDF             :: Int
@@ -43,7 +41,7 @@ type LearningRate = Double
 type TrainingFinished = Pred TrainingState
 
 data TrainingState = TrainingState
-    { coefficients :: Vector Double
+    { stepCoefficients :: Vector Double
     , rss          :: Double
     , dRss         :: Double
     , iter         :: Int } deriving Show
@@ -54,14 +52,20 @@ data ModelConfig = ModelConfig
     , modelSpec  :: ModelSpec
     }
 
+instance LR.LinearModel LinearRegressionGD where
+  coefficients    = lrCoefficients
+  rss             = lrRss
+  tss             = lrTss
+  degreesOfFredom = fromIntegral . lrDF
+
+instance MM.Model LinearRegressionGD where
+  features = features' . lrModelSpec
+
 instance Predictor LinearRegressionGD where
   predict   LinearRegressionGD { .. } cols  =
       SingleCol . Column lrResponseName $ VS.convert $
-          OLS.predictLinearRegression lrCoefficients $
+          LR.predictLinearRegression lrCoefficients $
               VS.convert . colData <$> cols
-  features = features' . lrModelSpec
-
-type Coefficients = Vector Double
 
 linearRegressionGD :: ModelConfig -> MM.ModelInit LinearRegressionGD
 linearRegressionGD cfg = MM.ModelInit
@@ -76,8 +80,9 @@ fitLinearRegression cfg response inputCols =
     let y  = VS.convert . colData $ response
         n  = VS.length y
         xs = VS.convert . colData <$> inputCols :: [Vector Double]
-        xX = OLS.prepareMatrix n xs
+        xX = LR.prepareMatrix n xs
         p  = pred $ M.cols xX
+        yMean            = MS.mean y
         yDelta           = y - (VS.replicate n yMean)
         lrTss            = yDelta <.> yDelta
         lrDF             = n - p - 1
@@ -85,16 +90,12 @@ fitLinearRegression cfg response inputCols =
         initialState     = TrainingState (VS.replicate (succ p) 0.0) lrTss lrTss 0
         stateSeq         = iterate step' initialState
         finalState       = RU.head $ dropWhile (finishPred cfg) stateSeq
-            -- dropWhile (rssDeltaBelow 0.0000000003) stateSeq
-        lrCoefficients   = coefficients finalState
-        residuals        = y - OLS.predictLinearRegression lrCoefficients xs
+        lrCoefficients   = stepCoefficients finalState
+        residuals        = y - LR.predictLinearRegression lrCoefficients xs
         lrRss            = residuals <.> residuals
-        yMean            = MS.mean y
-        lrMse            = lrRss / fromIntegral (n - p - 1)
-        lrRse            = sqrt lrMse
-        lrStandardErrors = M.takeDiag $ M.scale lrMse (
+        mse'             = lrRss / fromIntegral lrDF
+        lrStandardErrors = M.takeDiag $ M.scale mse' (
             M.inv . M.unSym $ M.mTm xX) ** 0.5
-        lrR2             = 1 - lrRss/lrTss
         lrResponseName   = colName response
         lrFeatureNames   = colName <$> inputCols
         lrModelSpec      = modelSpec cfg
@@ -106,12 +107,12 @@ step :: LearningRate
      -> TrainingState   -- theta
      -> TrainingState   -- theta'
 step a xX y TrainingState { .. } =
-    let yHat = xX #> coefficients
+    let yHat = xX #> stepCoefficients
         resi = yHat - y
         nRss = resi <.> resi
     in  --debugShow "iter" $
         TrainingState
-            { coefficients = coefficients - (M.scale a $ (yHat - y) <# xX)
+            { stepCoefficients = stepCoefficients - (M.scale a $ (yHat - y) <# xX)
             , iter         = iter + 1
             , rss          = nRss
             , dRss         = rss - nRss}

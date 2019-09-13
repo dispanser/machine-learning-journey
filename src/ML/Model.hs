@@ -23,9 +23,13 @@ data ModelInit a = ModelInit
     { fitF      :: FitF a
     , modelSpec :: ModelSpec }
 
-class Predictor a where
+class Model a where
+  features :: a -> FeatureSpace
+
+-- something that can make predictions. It also knows the feature space,
+-- because that helps writing generic functions that directly work on dataset
+class Model a => Predictor a where
   predict   :: a -> [Column Double]        -> Prediction
-  features  :: a -> FeatureSpace
 
 data ModelSpec = ModelSpec
     { features' :: FeatureSpace

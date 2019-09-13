@@ -48,16 +48,16 @@ spec_ISLRLinearRegression = parallel $
                 model = LR.fitLinearRegression ms
                 lr@LR.LinearRegression {..} = M.fitDataset model advertisingDataset
             it "computes coefficients" $
-                checkVector lrCoefficients   [7.0325, 0.0475]
+                checkVector (LR.coefficients lr) [7.0325, 0.0475]
 
             it "computes rse" $
-                lrRse `shouldRoughlyEqual` 3.258
+                LR.rse lr `shouldRoughlyEqual` 3.258
 
             it "computes standard errors" $
                 checkVector lrStandardErrors [0.4578, 0.0027]
 
             it "computes R^2" $
-                lrR2 `shouldRoughlyEqual` 0.612
+                LR.r2 lr `shouldRoughlyEqual` 0.612
 
             it "computes t-statistics" $
                 checkVector (LR.tStatistics lr) [15.36, 17.667]
@@ -74,10 +74,10 @@ spec_ISLRLinearRegression = parallel $
                 model = LR.fitLinearRegression ms
                 lr@LR.LinearRegression {..} = M.fitDataset model advertisingDataset
             it "computes coeffiicents" $ do
-                checkVector lrCoefficients [ 2.939, 0.046, -0.001, 0.189 ]
+                checkVector (LR.coefficients lr) [ 2.939, 0.046, -0.001, 0.189 ]
 
             it "computes rse" $
-                lrRse `shouldRoughlyEqual` 1.686
+                LR.rse lr `shouldRoughlyEqual` 1.686
 
             it "computes standard errors" $
                 checkVector lrStandardErrors [0.311908, 0.001395, 0.005871, 0.008611]
@@ -86,24 +86,30 @@ spec_ISLRLinearRegression = parallel $
                 LR.fStatistics lr `shouldRoughlyEqual` 570.271
 
             it "computes R^2" $
-                lrR2 `shouldRoughlyEqual` 0.897
+                LR.r2 lr `shouldRoughlyEqual` 0.897
 
 spec_EmptyClassLinearRegression :: Spec
 spec_EmptyClassLinearRegression = do
     -- when only training on a subset of the data, it can thusly happen that
     -- some one-hot encoded class vector is 0, leading to a singular matrix
     -- and no solution to the linear equation
+    describe "linear-solver based  linear regression" $ do
+        emptyClassVariable (LR.fitLinearRegression)
+    -- describe "gradient-descent based linear regression" $ do
+    --     emptyClassVariable (LRGD.linearRegressionGD . LRGD.ModelConfig 0.005 (LRGD.maxIterations 10000))
+
+emptyClassVariable :: LR.LinearModel a => (M.ModelSpec -> M.ModelInit a) -> Spec
+emptyClassVariable cfgF =
     it "should seemlessly handle empty class variables" $ do
         let cat      = DS.createFeature "x1" [ "blue", "blue", "blue", "red", "red" ]
             oth      = DS.createFeature "x2" [ "13", "14", "15", "8", "7" ]
             yc       = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
             ds       = DS.createFromFeatures "hspec" [cat, oth, yc]
             Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-            model     = LR.fitLinearRegression ms
-            lrFit     = M.fitSubset model (<= 2) ds
-        checkVector (LR.lrCoefficients lrFit) [-0.3, 0.1] -- intercept only: color can't be used
+            model    = cfgF ms
+            lrFit    = M.fitSubset model (<= 2) ds
+        checkVector (LR.coefficients lrFit) [-0.3, 0.1] -- intercept only: color can't be used
         checkSingleCol (M.predictSubset lrFit (>=3) ds) [0.5, 0.4] -- intercept-based estimate
-
 
 shouldRoughlyEqual :: (Show a, Num a, Ord a, Fractional a) => a -> a -> IO ()
 shouldRoughlyEqual actual expected = actual `shouldSatisfy` roughlyEqual expected
