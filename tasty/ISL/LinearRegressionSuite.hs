@@ -94,19 +94,13 @@ spec_EmptyClassLinearRegression = do
     -- some one-hot encoded class vector is 0, leading to a singular matrix
     -- and no solution to the linear equation
     describe "linear-solver based  linear regression" $ do
-        emptyClassVariable (LR.fitLinearRegression)
-    -- describe "gradient-descent based linear regression" $ do
-    --     emptyClassVariable (LRGD.linearRegressionGD . LRGD.ModelConfig 0.005 (LRGD.maxIterations 10000))
-
-emptyClassVariable :: LR.LinearModel a => (M.ModelSpec -> M.ModelInit a) -> Spec
-emptyClassVariable cfgF =
     it "should seemlessly handle empty class variables" $ do
         let cat      = DS.createFeature "x1" [ "blue", "blue", "blue", "red", "red" ]
             oth      = DS.createFeature "x2" [ "13", "14", "15", "8", "7" ]
             yc       = DS.createFeature "y" [ "1.0", "1.1", "1.2", "0.3", "0.6" ]
             ds       = DS.createFromFeatures "hspec" [cat, oth, yc]
             Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-            model    = cfgF ms
+            model    = LR.fitLinearRegression ms
             lrFit    = M.fitSubset model (<= 2) ds
         checkVector (LR.coefficients lrFit) [-0.3, 0.1] -- intercept only: color can't be used
         checkSingleCol (M.predictSubset lrFit (>=3) ds) [0.5, 0.4] -- intercept-based estimate
@@ -125,4 +119,3 @@ checkVector :: Vector Double -> [Double] -> IO ()
 checkVector xs y = do
     V.length xs `shouldBe` length y
     zipWithM_ (\x ex -> x `shouldRoughlyEqual` ex) (V.toList xs) y
-

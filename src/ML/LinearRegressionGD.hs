@@ -27,7 +27,6 @@ data LinearRegressionGD = LinearRegressionGD
     { lrFeatureNames   :: [T.Text]
     , lrResponseName   :: T.Text
     , lrCoefficients   :: Vector Double
-    , lrStandardErrors :: Vector Double
     , lrTss            :: Double
     , lrRss            :: Double
     , lrDF             :: Int
@@ -97,9 +96,6 @@ fitLinearRegression cfg response inputCols =
         lrCoefficients   = stepCoefficients finalState
         residuals        = y - LR.predictLinearRegression lrCoefficients xs
         lrRss            = residuals <.> residuals
-        mse'             = lrRss / fromIntegral lrDF
-        lrStandardErrors = M.takeDiag $ M.scale mse' (
-            M.inv . M.unSym $ M.mTm xX) ** 0.5
         lrResponseName   = colName response
         lrFeatureNames   = colName <$> inputCols
     in LinearRegressionGD { .. }
