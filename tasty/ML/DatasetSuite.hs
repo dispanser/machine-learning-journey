@@ -23,8 +23,8 @@ spec_DatasetFromFeatures :: Spec
 spec_DatasetFromFeatures = do
     describe "dataset created with createFromFeatures" $ do
         let Dataset {..} = createFromFeatures "test01" $ [fDouble, fNAs, fCat]
-            colRed        = Column "col3_red" $ V.fromList [1.0, 0.0, 0.0 ]
-            colBlue       = Column "col3_blue" $ V.fromList [0.0, 0.0, 1.0]
+            colRed        = mkColumn "col3_red" $ V.fromList [1.0, 0.0, 0.0 ]
+            colBlue       = mkColumn "col3_blue" $ V.fromList [0.0, 0.0, 1.0]
         it "should have proper name" $
             dsName' `shouldBe` "test01"
         it "contain all input features" $ do
@@ -47,7 +47,7 @@ spec_DatasetFromFeatures = do
             -- or the other way around: just return an empty column, given
             -- that at least the underlying feature exists and is categorical.
             colByName' "col3_green" `shouldBe`
-                Just (Column "col3_green" $ V.replicate 3 0.0)
+                Just (mkColumn "col3_green" $ V.replicate 3 0.0)
         it "defines the feature space covered" $ do
             (featName <$> knownFeats featureSpace) `shouldBe`
                 ["col1", "col2", "col3"]
@@ -59,10 +59,10 @@ spec_extractDataColumns = do
             fs      = featureSpace dataset
         it "should load all found columns" $
             extractDataColumns dataset fs `shouldBe`
-                [ Column "col1" $ V.fromList [1.0, 2.0, 3.0]
-                , Column "col2" $ V.fromList [1.0, 2.0, 3.0]
-                , Column "col3_red" $  V.fromList [1.0, 0.0, 0.0]
-                , Column "col3_yellow" $ V.fromList [0.0, 1.0, 0.0]]
+                [ mkColumn "col1" $ V.fromList [1.0, 2.0, 3.0]
+                , mkColumn "col2" $ V.fromList [1.0, 2.0, 3.0]
+                , mkColumn "col3_red" $  V.fromList [1.0, 0.0, 0.0]
+                , mkColumn "col3_yellow" $ V.fromList [0.0, 1.0, 0.0]]
         it "is robust to addition class inhabitants" $ do
             -- we create a dataset with an additional color, green,
             -- to make sure that using the previously defind feature space,
@@ -71,8 +71,8 @@ spec_extractDataColumns = do
                 Just fC3 = (findFeature fs) "col3"
                 dataset' = createFromFeatures "hspec" [fGreen]
             featureVectors' dataset' fC3 `shouldBe`
-                [ Column "col3_red"    $ V.fromList [1.0, 0.0, 0.0, 0.0]
-                , Column "col3_yellow" $ V.fromList [0.0, 1.0, 0.0, 0.0]]
+                [ mkColumn "col3_red"    $ V.fromList [1.0, 0.0, 0.0, 0.0]
+                , mkColumn "col3_yellow" $ V.fromList [0.0, 1.0, 0.0, 0.0]]
         it "is robust to removing a class inhabitant" $ do
             -- we create a dataset that's missing a color (yellow)
             -- to make sure that using the previously defind feature space,
@@ -81,8 +81,8 @@ spec_extractDataColumns = do
                 Just fC3 = (findFeature fs) "col3"
                 dataset' = createFromFeatures "hspec" [fNoY]
             featureVectors' dataset' fC3 `shouldBe`
-                [ Column "col3_red"    $ V.fromList [1.0, 0.0]
-                , Column "col3_yellow" $ V.fromList [0.0, 0.0] ]
+                [ mkColumn "col3_red"    $ V.fromList [1.0, 0.0]
+                , mkColumn "col3_yellow" $ V.fromList [0.0, 0.0] ]
         it "is robust to a new baseline class" $ do
             -- we create a dataset with an additional color, amber,
             -- that is the new baseline (lexicographically smallest)
@@ -92,35 +92,35 @@ spec_extractDataColumns = do
                 Just fC3 = (findFeature fs) "col3"
                 dataset' = createFromFeatures "hspec" [fAmber]
             featureVectors' dataset' fC3 `shouldBe`
-                [ Column "col3_red"    $ V.fromList [0.0, 0.0, 0.0, 0.0]
-                , Column "col3_yellow" $ V.fromList [0.0, 1.0, 0.0, 0.0]]
+                [ mkColumn "col3_red"    $ V.fromList [0.0, 0.0, 0.0, 0.0]
+                , mkColumn "col3_yellow" $ V.fromList [0.0, 1.0, 0.0, 0.0]]
 
 spec_filterRows :: Spec
 spec_filterRows = do
     it "filters to keep even rows" $ do
-        let c = Column "col1" $ V.fromList [1.0, 2.0, 3.0, 4.0, 5.0]
+        let c = mkColumn "col1" $ V.fromList [1.0, 2.0, 3.0, 4.0, 5.0]
         filterDataColumn even c `shouldBe`
-            (Column "col1" $ V.fromList [1.0, 3.0, 5.0 :: Double])
+            (mkColumn "col1" $ V.fromList [1.0, 3.0, 5.0 :: Double])
 
 spec_CreateFeature :: Spec
 spec_CreateFeature = do
     it "creates quantitative feature from empty data" $ do
-        createFeature "col1" [] `shouldBe` SingleCol (Column "col1" V.empty)
+        createFeature "col1" [] `shouldBe` SingleCol (mkColumn "col1" V.empty)
     it "creates quantitative feature without N/As" $ do
         let f = createFeature "col1" ["1.0", "2.0", "3.0"]
-        f `shouldBe` SingleCol (Column "col1" $ V.fromList [1..3])
+        f `shouldBe` SingleCol (mkColumn "col1" $ V.fromList [1..3])
     it "creates quantitative feature with N/As replaced by variable mean" $ do
         let f = createFeature "col1" ["1.0", "NA", "3.0"]
-        f `shouldBe` SingleCol (Column "col1" $ V.fromList [1..3])
+        f `shouldBe` SingleCol (mkColumn "col1" $ V.fromList [1..3])
     describe "categorical features" $ do
         it "creates categorical feature on non-numerical columns" $ do
             let f = createFeature "col1" ["blue", "red", "yellow"]
             f `shouldBe` MultiCol (Categorical "col1" "blue" $
-                [ Column "col1_red"    $ V.fromList [0.0, 1.0, 0.0 ]
-                , Column "col1_yellow" $ V.fromList [0.0, 0.0, 1.0 ] ])
+                [ mkColumn "col1_red"    $ V.fromList [0.0, 1.0, 0.0 ]
+                , mkColumn "col1_yellow" $ V.fromList [0.0, 0.0, 1.0 ] ])
         it "columns and base feature are canonically ordered" $ do
             let f = createFeature "col1" ["red", "yellow", "blue"]
             f `shouldBe` MultiCol (Categorical "col1" "blue" $
-                [ Column "col1_red"    $ V.fromList [1.0, 0.0, 0.0 ]
-                , Column "col1_yellow" $ V.fromList [0.0, 1.0, 0.0 ] ])
+                [ mkColumn "col1_red"    $ V.fromList [1.0, 0.0, 0.0 ]
+                , mkColumn "col1_yellow" $ V.fromList [0.0, 1.0, 0.0 ] ])
 

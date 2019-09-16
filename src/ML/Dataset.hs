@@ -15,7 +15,7 @@ This is far away from being usable:
 -}
 
 module ML.Dataset
-  ( Column(..)
+  ( Column, colData, colName, C.mkColumn
   , RowSelector
   , ColumnTransformer
   , module ML.Dataset -- TODO: replace module export with concrete stuff

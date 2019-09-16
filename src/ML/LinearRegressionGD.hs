@@ -15,7 +15,7 @@ import qualified Relude.Unsafe as RU
 import qualified Data.Text as T
 import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
-import           ML.Dataset (Feature(..), Column(..))
+import           ML.Dataset (Feature(..), Column(..), mkColumn)
 import qualified ML.Model as MM
 import           ML.Model (ModelSpec(..), Predictor(..))
 import qualified ML.LinearRegression as LR
@@ -66,7 +66,7 @@ instance MM.Model LinearRegressionGD where
 
 instance Predictor LinearRegressionGD where
   predict   LinearRegressionGD { .. } cols  =
-      SingleCol . Column lrResponseName $ VS.convert $
+      SingleCol . mkColumn lrResponseName $ VS.convert $
           LR.predictLinearRegression lrCoefficients $
               VS.convert . colData <$> cols
 

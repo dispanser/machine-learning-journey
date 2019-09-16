@@ -14,6 +14,7 @@ module ML.Data.Column.Internal
     , vmean
     , columnLength
     , columnVariance
+    , mkColumn
     ) where
 
 import           Data.Vector.Unboxed (Vector)
@@ -33,6 +34,9 @@ data Column a = Column
 
 instance Summary (Column Double) where
   summary = (:[]) . summarizeColumn
+
+mkColumn :: Text -> Vector a -> Column a
+mkColumn = Column
 
 summarizeColumn :: Column Double -> Text
 summarizeColumn Column { .. } =

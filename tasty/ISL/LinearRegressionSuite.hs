@@ -6,7 +6,7 @@ module ISL.LinearRegressionSuite where
 
 import qualified ML.Model as M
 import           ML.Dataset.CSV (createDataset)
-import           ML.Dataset (Dataset(..))
+import           ML.Dataset (Dataset(..), mkColumn)
 import           ML.Data.Column.Internal (rescaleColumn, rawColumn)
 import qualified ML.Dataset as DS
 import           Control.Monad (zipWithM_)
@@ -29,9 +29,9 @@ babyRegression :: M.Predictor a => (M.ModelSpec -> M.ModelInit a) -> Spec
 babyRegression cfgF = do
     describe "on some toy example" $ do
         -- perfect line: y = 2x-1
-        let x         = DS.SingleCol $ DS.Column "x" $ VU.fromList [2.0, 3.0, 4.0 :: Double]
-            y         = DS.SingleCol $ DS.Column "y" $ VU.fromList [3.0, 5.0, 7.0 :: Double]
-            xTest     = DS.Column "x" $ VU.fromList [0.0, 1.0, 2.0, 3.0, 4.0, 5.0 :: Double]
+        let x         = DS.SingleCol $ mkColumn "x" $ VU.fromList [2.0, 3.0, 4.0 :: Double]
+            y         = DS.SingleCol $ mkColumn "y" $ VU.fromList [3.0, 5.0, 7.0 :: Double]
+            xTest     = mkColumn "x" $ VU.fromList [0.0, 1.0, 2.0, 3.0, 4.0, 5.0 :: Double]
             ds        = DS.createFromFeatures "hspec" [x, y]
             Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x"]
             predictor = M.fitDataset (cfgF ms) ds
@@ -49,57 +49,57 @@ spec_TestingRescalingBehavior = do
             b1 = -0.1164
             b2 = 0.192606
         it "should compute some coefficients" $ do
-            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
-                x2        = DS.SingleCol $ DS.Column "x2" x2Data
-                y         = DS.SingleCol $ DS.Column "y"  yData
+            let x1        = DS.SingleCol $ mkColumn "x1" x1Data
+                x2        = DS.SingleCol $ mkColumn "x2" x2Data
+                y         = DS.SingleCol $ mkColumn "y"  yData
                 ds        = DS.createFromFeatures "hspec" [x1, x2, y]
                 Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
                 lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
             checkVector (LR.coefficients lrModel) [b0, b1, b2]
         it "should halve b2 when scaling column 2 up by 2" $ do
-            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
-                x2        = DS.SingleCol $ DS.Column "x2" $ VU.map (*2) x2Data
-                y         = DS.SingleCol $ DS.Column "y"  yData
+            let x1        = DS.SingleCol $ mkColumn "x1" x1Data
+                x2        = DS.SingleCol $ mkColumn "x2" $ VU.map (*2) x2Data
+                y         = DS.SingleCol $ mkColumn "y"  yData
                 ds        = DS.createFromFeatures "hspec" [x1, x2, y]
                 Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
                 lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
             checkVector (LR.coefficients lrModel) [b0, b1, b2 / 2]
         it "should substract b2 from b0 when shifting column 2 up by 1" $ do
-            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
-                x2        = DS.SingleCol $ DS.Column "x2" $ VU.map (+1) x2Data
-                y         = DS.SingleCol $ DS.Column "y"  yData
+            let x1        = DS.SingleCol $ mkColumn "x1" x1Data
+                x2        = DS.SingleCol $ mkColumn "x2" $ VU.map (+1) x2Data
+                y         = DS.SingleCol $ mkColumn "y"  yData
                 ds        = DS.createFromFeatures "hspec" [x1, x2, y]
                 Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
                 lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
             checkVector (LR.coefficients lrModel) [b0 - b2, b1, b2]
         it "should adapt b0 and b2 without touching b1 on linear transformation of x2" $ do
-            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
-                x2        = DS.SingleCol $ DS.Column "x2" $ VU.map ((/3) . (subtract 5)) x2Data
-                y         = DS.SingleCol $ DS.Column "y"  yData
+            let x1        = DS.SingleCol $ mkColumn "x1" x1Data
+                x2        = DS.SingleCol $ mkColumn "x2" $ VU.map ((/3) . (subtract 5)) x2Data
+                y         = DS.SingleCol $ mkColumn "y"  yData
                 ds        = DS.createFromFeatures "hspec" [x1, x2, y]
                 Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
                 lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
             checkVector (LR.coefficients lrModel) [b0+5*b2, b1, 3*b2]
         it "should adapt all of beta when multiplying y with a scalar" $ do
-            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
-                x2        = DS.SingleCol $ DS.Column "x2" x2Data
-                y         = DS.SingleCol $ DS.Column "y"  $ VU.map (/3) yData
+            let x1        = DS.SingleCol $ mkColumn "x1" x1Data
+                x2        = DS.SingleCol $ mkColumn "x2" x2Data
+                y         = DS.SingleCol $ mkColumn "y"  $ VU.map (/3) yData
                 ds        = DS.createFromFeatures "hspec" [x1, x2, y]
                 Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
                 lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
             checkVector (LR.coefficients lrModel) $ (/3) <$> [b0, b1, b2]
         it "should adapt intercept when shifting y" $ do
-            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
-                x2        = DS.SingleCol $ DS.Column "x2" x2Data
-                y         = DS.SingleCol $ DS.Column "y"  $ VU.map (+3) yData
+            let x1        = DS.SingleCol $ mkColumn "x1" x1Data
+                x2        = DS.SingleCol $ mkColumn "x2" x2Data
+                y         = DS.SingleCol $ mkColumn "y"  $ VU.map (+3) yData
                 ds        = DS.createFromFeatures "hspec" [x1, x2, y]
                 Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
                 lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
             checkVector (LR.coefficients lrModel) [b0 + 3, b1, b2]
         it "should do something to all of you  y" $ do
-            let x1        = DS.SingleCol $ DS.Column "x1" x1Data
-                x2        = DS.SingleCol $ DS.Column "x2" x2Data
-                y         = DS.SingleCol $ DS.Column "y"  $ VU.map ((/7) . subtract 3) yData
+            let x1        = DS.SingleCol $ mkColumn "x1" x1Data
+                x2        = DS.SingleCol $ mkColumn "x2" x2Data
+                y         = DS.SingleCol $ mkColumn "y"  $ VU.map ((/7) . subtract 3) yData
                 ds        = DS.createFromFeatures "hspec" [x1, x2, y]
                 Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
                 lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
@@ -227,7 +227,7 @@ roughlyEqual :: (Num a, Ord a, Fractional a) => a -> a -> Bool
 roughlyEqual expected actual = 0.001 > abs (expected - actual)
 
 checkSingleCol :: DS.Feature Double -> [Double] -> IO ()
-checkSingleCol (DS.SingleCol DS.Column {..}) = checkVector $ V.convert colData
+checkSingleCol (DS.SingleCol c) = checkVector $ V.convert $ DS.colData c
 checkSingleCol (DS.MultiCol _)               = const $ fail "expecting quantitative column"
 
 checkVector :: Vector Double -> [Double] -> IO ()

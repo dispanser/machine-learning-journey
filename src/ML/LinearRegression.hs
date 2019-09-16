@@ -6,7 +6,7 @@
 module ML.LinearRegression where
 
 import qualified ML.Model as M
-import           ML.Dataset (Feature(..), Column(..))
+import           ML.Dataset (Feature(..), Column(..), mkColumn)
 import qualified ML.Dataset as DS
 import           ML.Model (ModelSpec(..))
 import           ML.Data.Summary
@@ -56,7 +56,7 @@ instance M.Model LinearRegression where
 
 instance M.Predictor LinearRegression where
   predict   LinearRegression { .. } cols  =
-      SingleCol . Column lrResponseName $ VS.convert $
+      SingleCol . mkColumn lrResponseName $ VS.convert $
           predictLinearRegression lrCoefficients $
               VS.convert . colData <$> cols
 
