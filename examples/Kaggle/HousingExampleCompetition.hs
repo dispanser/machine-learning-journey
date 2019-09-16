@@ -10,6 +10,7 @@ import qualified ML.Dataset as DS
 import qualified ML.Model     as M
 import qualified ML.Model.Validation     as MV
 import qualified ML.LinearRegression as OLS
+import           ML.Data.Summary (summary)
 
 main :: IO ()
 main = do
@@ -32,7 +33,7 @@ main = do
         lrModel   = OLS.fitLinearRegression ms
         lrFit     = M.fitDataset lrModel housingDS
 
-    mapM_ print $ DS.summary lrFit
+    mapM_ print $ summary lrFit
 
     let valMSE = MV.validateModel lrModel 1 housingDS
     putStrLn $ "validation set MSE: " <> show valMSE

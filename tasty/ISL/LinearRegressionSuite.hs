@@ -7,6 +7,7 @@ module ISL.LinearRegressionSuite where
 import qualified ML.Model as M
 import           ML.Dataset.CSV (createDataset)
 import           ML.Dataset (Dataset(..))
+import           ML.Data.Column.Internal (rescaleColumn, rawColumn)
 import qualified ML.Dataset as DS
 import           Control.Monad (zipWithM_)
 import           Test.Tasty.Hspec (Spec)
@@ -123,10 +124,10 @@ spec_ISLRLinearRegressionGD = parallel $
             it "computes R^2" $
                 LR.r2 lr `shouldRoughlyEqual` 0.612
         describe "applying feature scaling" $ do
-            let Just tvFeat    = DS.rescaleColumn <$> (colByName' advertisingDataset) "TV"
-                Just salesFeat = DS.rescaleColumn <$> (colByName' advertisingDataset) "sales"
+            let Just tvFeat    = rescaleColumn <$> (colByName' advertisingDataset) "TV"
+                Just salesFeat = rescaleColumn <$> (colByName' advertisingDataset) "sales"
                 scaledDS       = DS.createFromFeatures "scaled advertising"
-                    [DS.SingleCol . DS.rawColumn $ tvFeat, DS.SingleCol . DS.rawColumn $ salesFeat]
+                    [DS.SingleCol . rawColumn $ tvFeat, DS.SingleCol . rawColumn $ salesFeat]
             let Right ms = M.buildModelSpec
                     (featureSpace scaledDS) "sales" ["TV"]
                 model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005 (LRGD.maxIterations 140) ms

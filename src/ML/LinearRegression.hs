@@ -9,6 +9,7 @@ import qualified ML.Model as M
 import           ML.Dataset (Feature(..), Column(..))
 import qualified ML.Dataset as DS
 import           ML.Model (ModelSpec(..))
+import           ML.Data.Summary
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Numeric.Morpheus.Statistics as MS
@@ -59,7 +60,7 @@ instance M.Predictor LinearRegression where
           predictLinearRegression lrCoefficients $
               VS.convert . colData <$> cols
 
-instance DS.Summary LinearRegression where
+instance Summary LinearRegression where
   summary = summarizeLinearRegression
 
 summarizeLinearRegression :: LinearRegression -> [T.Text]
@@ -84,10 +85,9 @@ formatFormula responseName featureNames =
 -- format a coefficient into a nicely laid out string
 formatCoefficientInfo :: Double -> T.Text -> Double -> Double -> T.Text
 formatCoefficientInfo df name x err =
-    let scieF         = F.left 11 ' ' %. F.scifmt Scientific.Exponent (Just 4)
-        numF          = F.left 8 ' '  %. F.fixed 4
+    let numF'          = F.left 8 ' '  %. F.fixed 4
         formatString = (F.left 17 ' ' %. F.stext) % " | " % scieF % " | " % scieF %
-            " | " % numF % " | " % numF
+            " | " % numF' % " | " % numF'
         tStat        = x / err
         -- TODO: multiplying by two gives the same values as R, but that's not
         -- a good reason to randomly multiply by something. Investigate!

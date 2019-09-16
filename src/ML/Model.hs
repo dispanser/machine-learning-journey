@@ -9,8 +9,8 @@ module ML.Model where
 
 import qualified Relude.Unsafe as RU
 import qualified ML.Dataset as DS
-import           ML.Dataset (Dataset(..), Feature, Column
-                            , FeatureSpace(..) , FeatureSpec)
+import           ML.Dataset (Dataset(..), Feature, FeatureSpace(..)
+                            , Column(..), FeatureSpec)
 import           Data.Text (Text)
 
 -- initial stub type for prediction result: the column vector of response

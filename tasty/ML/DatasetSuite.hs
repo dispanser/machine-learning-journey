@@ -6,8 +6,6 @@ module ML.DatasetSuite where
 import           ML.Dataset
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
-import           Test.QuickCheck
-import qualified Data.List as DL
 import qualified Data.Vector.Unboxed as V
 
 fDouble, fNAs, fCat :: Feature Double
@@ -20,13 +18,6 @@ spec_replaceNAs =
     it "N/A values should be replaced by the variable mean" $ do
         let vs = V.fromList [-1, sqrt $ -1, 3]
         replaceNAs vs `shouldBe` V.fromList [-1, 1, 3 :: Double]
-
-prop_Rescaled :: NonEmptyList Double -> Property
-prop_Rescaled (NonEmpty xs) = (DL.maximum xs /= DL.minimum xs) ==>
-    let vs   = rescale01 $ V.fromList xs
-        minV = V.minimum vs
-        maxV = V.maximum vs
-    in minV >= 0 && maxV <= 1
 
 spec_DatasetFromFeatures :: Spec
 spec_DatasetFromFeatures = do

@@ -1,9 +1,9 @@
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 {-
 Very simple prototype of how to represent data
@@ -14,29 +14,23 @@ This is far away from being usable:
 - no support for N/A
 -}
 
-module ML.Dataset where
+module ML.Dataset
+  ( Column(..)
+  , RowSelector
+  , ColumnTransformer
+  , module ML.Dataset -- TODO: replace module export with concrete stuff
+  , C.filterDataColumn
+  , C.columnVariance
+  ) where
 
 import           GHC.Show (Show(..))
 import qualified Data.Map.Strict as M
-import qualified Data.Scientific as Scientific
 import qualified Data.Text as T
 import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
-import qualified Data.Vector.Generic as VG
-import qualified Formatting as F
-import qualified Formatting.ShortFormatters as F
-import           Formatting ((%), (%.))
-import qualified Statistics.Quantile as Q
-import qualified Statistics.Sample as S
-import           Statistics.Function (minMax)
-
-class Summary a where
-  summary :: a -> [Text]
-
--- select the subset of rows that are
-type RowSelector = Int -> Bool
-
-type ColumnTransformer = Column Double -> Column Double
+import           ML.Data.Summary
+import qualified ML.Data.Column.Internal as C
+import           ML.Data.Column.Internal (Column(..), RowSelector, ColumnTransformer)
 
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
@@ -76,10 +70,6 @@ data FeatureSpec = FeatureSpec
     , additionalColumns :: [Text]
     } deriving (Eq, Show)
 
-data Column a = Column
-    { colName :: Text
-    , colData :: Vector a } deriving (Eq, Show)
-
 data Categorical a = Categorical
     { className   :: Text
     , baseFeature :: Text
@@ -88,21 +78,12 @@ data Categorical a = Categorical
 data Feature a = SingleCol (Column a)
                | MultiCol  (Categorical a) deriving (Eq, Show)
 
-data ScaledColumn  = ScaledColumn
-    { rawColumn   :: Column Double
-    , scaleOffset :: Double
-    , scaleFactor :: Double
-    } deriving Show
-
 instance Summary (Feature Double) where
   summary (SingleCol col) = summary col
   summary (MultiCol cat ) = summary cat
 
 instance Summary Dataset where
   summary ds = concatMap summary $ dsFeatures ds
-
-instance Summary (Column Double) where
-  summary = (:[]) . summarizeColumn
 
 instance Summary (Categorical Double) where
   summary = (:[]) . summarizeCategorical
@@ -131,40 +112,12 @@ createFromFeatures name feats =
         featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
     in Dataset { .. }
 
-rescaleColumn :: Column Double -> ScaledColumn
-rescaleColumn c@(colData -> xs) =
-    let (minV, maxV) = minMax xs
-        range        = maxV - minV
-    in ScaledColumn
-        { rawColumn   = c { colData =  VG.map (\x -> (x - minV) / range) xs}
-        , scaleOffset = minV   -- -minV, to be pedantic
-        , scaleFactor = range  -- 1/range, to be pedantic
-        }
-
-rescale01 :: VG.Vector v Double => v Double -> v Double
-rescale01 xs =
-    let (minV, maxV) = minMax xs
-        range        = maxV - minV
-    in VG.map (\x -> (x - minV) / range) xs
-
--- column variance.
-columnVariance :: Column Double -> Double
-columnVariance = S.varianceUnbiased . colData
-
-columnLength :: V.Unbox a => [Column a] -> Int
-columnLength []     = 0
-columnLength (x:_) = V.length . colData $ x
-
 -- TODO: Either Text ? notion of missing / spec mismatch?
 extractDataColumns :: Dataset -> FeatureSpace -> [Column Double]
 extractDataColumns ds FeatureSpace { .. } =
     let columns = concatMap (featureVectors' ds) $ knownFeats
     in filter (not . (`elem` ignoredCols) . colName) columns
 
-
-filterDataColumn :: V.Unbox a => RowSelector -> Column a -> Column a
-filterDataColumn rs (Column name cData) =
-    Column name $ V.ifilter (\i _ -> rs i) cData
 
 featureVectors' :: Dataset -> FeatureSpec -> [Column Double]
 featureVectors' ds FeatureSpec { .. } =
@@ -242,7 +195,7 @@ createFeature name xs@(x:_) =
 
 replaceNAs :: Vector Double -> Vector Double
 replaceNAs xs =
-    let mean      = vmean $ V.filter (not . isNaN) xs
+    let mean      = C.vmean $ V.filter (not . isNaN) xs
     in V.map (\x -> if isNaN x then mean else x) xs
 
 createSingleCol :: Text -> [Text] -> Column Double
@@ -261,48 +214,18 @@ createCategorical className colData =
             fmap (\d -> if d == kl then 1.0 else 0.0) colData
     in  Categorical { .. }
 
-summarizeColumn :: Column Double -> Text
-summarizeColumn Column { .. } =
-    let [min', fstQ, med, thrdQ, max'] =
-            Q.quantiles Q.medianUnbiased [0..4] 4 colData
-        mean = vmean colData
-    in F.sformat (textF  13 % " Min: " % scieF % " 1stQ:" % scieF %
-        " Med: " % scieF % " 3rdQ:" % scieF % " Max:" % scieF %
-            " Mean:" % scieF)
-            colName (dSc min') (dSc fstQ) (dSc med) (dSc thrdQ)
-            (dSc max') (dSc mean)
-
-dSc :: Double -> Scientific.Scientific
-dSc = Scientific.fromFloatDigits
-
-scieF, percF :: F.Format r' (Scientific.Scientific -> r')
-scieF = F.left 11 ' ' %. F.scifmt Scientific.Generic (Just 2)
-percF = F.left 5 ' ' %. F.scifmt Scientific.Generic (Just 2)
-
-textF :: Int -> F.Format r' (Text -> r')
-textF i = (F.l i ' ' %. F.st)
-
-numF :: F.Format r' (Integer -> r')
-numF  = F.l 13 ' ' %. (F.fitRight 13 %. F.sf)
-
-intF :: F.Format r (Integer -> r)
-intF = F.r 4 ' ' %. F.d
-
-vmean :: VG.Vector v Double => v Double -> Double
-vmean vs = VG.sum vs / fromIntegral (VG.length vs)
-
 summarizeCategorical :: Categorical Double -> Text
 summarizeCategorical c@Categorical { .. } =
-    let size        = fromIntegral $ columnLength features
+    let size        = fromIntegral $ C.columnLength features
         featNameLength = succ $ T.length className
         baseFeat= baselineColumn className c
         fc :: Column Double -> Text
-        fc Column { .. } = F.sformat (textF 5 % ": n=" % intF % " " % percF % "%")
+        fc Column { .. } = sformat (textF 5 % ": n=" % intF % " " % percF % "%")
             (T.drop featNameLength colName)
             (round $ V.sum colData)
             (dSc $ 100.0*(V.sum colData)/size)
         texts = fc <$> baseFeat:features
-    in F.sformat (textF 13) className <> (T.intercalate " | " $ texts)
+    in sformat (textF 13) className <> (T.intercalate " | " $ texts)
 
 rowSelectorFromList :: [Bool] -> RowSelector
 rowSelectorFromList xs =
