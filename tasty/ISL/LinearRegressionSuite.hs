@@ -129,11 +129,20 @@ spec_ISLRLinearRegressionGD = parallel $
                     [DS.SingleCol . DS.rawColumn $ tvFeat, DS.SingleCol . DS.rawColumn $ salesFeat]
             let Right ms = M.buildModelSpec
                     (featureSpace scaledDS) "sales" ["TV"]
-                model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005 (LRGD.maxIterations 40) ms
+                model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005 (LRGD.maxIterations 140) ms
                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model scaledDS
-            runIO $ print $ "tv' = (tv - " ++ show (DS.scaleOffset tvFeat) ++ ") / " ++ show (DS.scaleFactor tvFeat)
-            it "computes coefficients" $
-                checkVector (LR.coefficients lr) [7.0325, 0.0475]
+            let [intercept, tvCoef] = V.toList $ LR.coefficients lr
+            runIO $ print $ V.toList $ LR.coefficients lr
+
+            -- recover original coefficents from unscaled solution
+            let coef'      = tvCoef * 25.4 / 295.7
+            let intercept' = intercept * 25.4 + 1.6 - 0.7 * coef'
+
+            it "scales back tv coefficient" $
+                coef' `shouldRoughlyEqual` 0.0475
+
+            it "scales back intercept" $
+                intercept' `shouldRoughlyEqual` 7.0325
 
             it "computes rse" $
                 LR.rse lr `shouldRoughlyEqual` 3.258
