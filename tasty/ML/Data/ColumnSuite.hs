@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module ML.Data.ColumnSuite where
 
 import qualified Data.List as DL
@@ -7,7 +9,7 @@ import ML.Data.Column.Internal
 
 prop_Rescaled :: NonEmptyList Double -> Property
 prop_Rescaled (NonEmpty xs) = (DL.maximum xs /= DL.minimum xs) ==>
-    let vs   = rescale01 $ V.fromList xs
-        minV = V.minimum vs
-        maxV = V.maximum vs
+    let vs   = scaleColumn scale01 $ mkColumn "test" $ V.fromList xs
+        minV = V.minimum $ colData vs
+        maxV = V.maximum $ colData vs
     in minV >= 0 && maxV <= 1

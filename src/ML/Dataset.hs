@@ -15,7 +15,7 @@ This is far away from being usable:
 -}
 
 module ML.Dataset
-  ( Column, colData, colName, C.mkColumn
+  ( Column, colData, colName, mkColumn
   , RowSelector
   , ColumnTransformer
   , module ML.Dataset -- TODO: replace module export with concrete stuff
@@ -30,7 +30,8 @@ import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
 import           ML.Data.Summary
 import qualified ML.Data.Column.Internal as C
-import           ML.Data.Column.Internal (Column(..), RowSelector, ColumnTransformer)
+import           ML.Data.Column.Internal (Column(..), RowSelector
+                                         , ColumnTransformer, mkColumn)
 
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
@@ -105,7 +106,7 @@ createFromFeatures name feats =
                 MultiCol  c@Categorical { .. } ->
                     if baseFeature == klass
                        then return $ baselineColumn feat c
-                       else return $ Column (feat <> "_" <> klass) $
+                       else return $ C.mkColumn (feat <> "_" <> klass) $
                            V.replicate dsNumRows' 0.0
         findMissingClass _ = Nothing
         colByName' c = whenNothing (M.lookup c columnIndex) (findMissingClass c)
@@ -170,13 +171,13 @@ featureColumn (SingleCol c)     = c
 featureColumn (MultiCol Categorical { .. }) =
     error $ "trying to extract a single feature from categorical column '"
         <> className <> "'"
+
 baselineColumn :: Text -> Categorical Double -> Column Double
-baselineColumn fName Categorical { .. } = Column
-    { colName = fName <> "_" <> baseFeature
-    , colData = v }
- where n      = maybe 0 colSize $ listToMaybe features
-       vsum i = sum $ (V.! i) . colData <$> features
-       v      = V.generate n (\i -> 1.0 - vsum i) :: Vector Double
+baselineColumn fName Categorical { .. } =
+    mkColumn (fName <> "_" <> baseFeature) v
+     where n      = maybe 0 colSize $ listToMaybe features
+           vsum i = sum $ (V.! i) . colData <$> features
+           v      = V.generate n (\i -> 1.0 - vsum i) :: Vector Double
 
 featureColumns :: Feature a -> [Column a]
 featureColumns (SingleCol col)               = [col]
@@ -186,7 +187,7 @@ colSize :: V.Unbox a => Column a -> Int
 colSize = V.length . colData
 
 createFeature :: Text -> [Text] -> Feature Double
-createFeature name []     = SingleCol $ Column name V.empty
+createFeature name []     = SingleCol $ mkColumn name V.empty
 createFeature name xs@(x:_) =
     let parseFirst = readEither x :: Either Text Double
     in case parseFirst of
@@ -201,7 +202,7 @@ replaceNAs xs =
 createSingleCol :: Text -> [Text] -> Column Double
 createSingleCol colName colData =
     let fallback = sqrt $ -1
-    in Column colName $ replaceNAs $ V.fromList $
+    in mkColumn colName $ replaceNAs $ V.fromList $
             either (const fallback) identity . readEither <$> colData
 
 createCategorical :: Text -> [Text] -> Categorical Double
@@ -210,7 +211,7 @@ createCategorical className colData =
             sort . ordNub $ colData
         Just (baseFeature, others) = uncons klasses
         features                   = fmap createKlassVector others
-        createKlassVector kl       = Column (className <> "_" <> kl) $ V.fromList $
+        createKlassVector kl       = mkColumn (className <> "_" <> kl) $ V.fromList $
             fmap (\d -> if d == kl then 1.0 else 0.0) colData
     in  Categorical { .. }
 

@@ -7,10 +7,9 @@ module ML.Data.Column.Internal
     ( RowSelector
     , ColumnTransformer
     , Column(..)
-    , ScaledColumn(..)
     , filterDataColumn
-    , rescaleColumn
-    , rescale01
+    , scaleColumn
+    , scale01
     , vmean
     , columnLength
     , columnVariance
@@ -27,16 +26,19 @@ import           ML.Data.Summary
 
 type RowSelector       = Int           -> Bool
 type ColumnTransformer = Column Double -> Column Double
+type Scaling           = (Double, Double)
 
 data Column a = Column
     { colName :: Text
+    , scale   :: Double
+    , shift   :: Double
     , colData :: Vector a } deriving (Eq, Show)
 
 instance Summary (Column Double) where
   summary = (:[]) . summarizeColumn
 
 mkColumn :: Text -> Vector a -> Column a
-mkColumn = Column
+mkColumn n xs = Column n 1 0 xs
 
 summarizeColumn :: Column Double -> Text
 summarizeColumn Column { .. } =
@@ -49,31 +51,24 @@ summarizeColumn Column { .. } =
             colName (dSc min') (dSc fstQ) (dSc med) (dSc thrdQ)
             (dSc max') (dSc mean)
 
-rescaleColumn :: Column Double -> ScaledColumn
-rescaleColumn c =
-    let (minV, maxV) = minMax $ colData c
-        range        = maxV - minV
-    in ScaledColumn
-        { rawColumn   = c { colData =  VG.map (\x -> (x - minV) / range) $ colData c}
-        , scaleOffset = minV   -- -minV, to be pedantic
-        , scaleFactor = range  -- 1/range, to be pedantic
-        }
+scaleColumn :: (Vector Double -> Scaling) -> Column Double -> Column Double
+scaleColumn sc col =
+    let (range, shift) = sc $ colData col
+        transF         = ((/range) . subtract shift)
+    in Column
+        { colName = colName col
+        , scale   = range   -- 1/range, to be pedantic
+        , shift   = shift  -- -minV, to be pedantic
+        , colData = V.map transF $ colData col }
 
-data ScaledColumn  = ScaledColumn
-    { rawColumn   :: Column Double
-    , scaleOffset :: Double
-    , scaleFactor :: Double
-    } deriving Show
-
-rescale01 :: VG.Vector v Double => v Double -> v Double
-rescale01 xs =
+scale01 :: VG.Vector v Double => v Double -> (Double, Double)
+scale01 xs =
     let (minV, maxV) = minMax xs
-        range        = maxV - minV
-    in VG.map (\x -> (x - minV) / range) xs
+    in  (maxV - minV, minV)
 
 filterDataColumn :: V.Unbox a => RowSelector -> Column a -> Column a
-filterDataColumn rs (Column name cData) =
-    Column name $ V.ifilter (\i _ -> rs i) cData
+filterDataColumn rs (Column name sc sh cData) =
+    Column name sc sh $ V.ifilter (\i _ -> rs i) cData
 
 vmean :: VG.Vector v Double => v Double -> Double
 vmean vs = VG.sum vs / fromIntegral (VG.length vs)
