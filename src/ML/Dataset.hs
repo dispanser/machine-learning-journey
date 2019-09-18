@@ -32,6 +32,21 @@ import           ML.Data.Summary
 import qualified ML.Data.Column.Internal as C
 import           ML.Data.Column.Internal (Column(..), RowSelector
                                          , ColumnTransformer, mkColumn)
+type ParseError = String
+
+data FeatureType =
+    Auto { name :: Text }
+      | Cat { name :: Text }
+      | Cont { name :: Text }
+
+-- instantiate a string into a feature type using auto-detection mechanism
+instance IsString FeatureType where
+  fromString = Auto . fromString
+
+data RawData = RawData
+    { names      :: [Text]
+    , dataColumn :: Text -> Either ParseError [Text]
+    }
 
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
@@ -88,6 +103,17 @@ instance Summary Dataset where
 
 instance Summary (Categorical Double) where
   summary = (:[]) . summarizeCategorical
+
+parseDataset :: [FeatureType] -> RawData -> Either ParseError Dataset
+parseDataset fs RawData {..} =
+    let feature ft = createFeature ft <$> dataColumn (name ft)
+        features   = traverse feature fs
+    in createFromFeatures "unknown dataset" <$> features
+
+parseFullDataset :: RawData -> Either ParseError Dataset
+parseFullDataset rd =
+    let features = Auto <$> names rd
+    in parseDataset features rd
 
 createFromFeatures :: T.Text -> [Feature Double] -> Dataset
 createFromFeatures name feats =
@@ -186,9 +212,9 @@ featureColumns (MultiCol Categorical { .. }) = features
 colSize :: V.Unbox a => Column a -> Int
 colSize = V.length . colData
 
-createFeature :: Text -> [Text] -> Feature Double
-createFeature name []     = SingleCol $ mkColumn name V.empty
-createFeature name xs@(x:_) =
+createFeature :: FeatureType -> [Text] -> Feature Double
+createFeature (name -> name) [] = SingleCol $ mkColumn name V.empty
+createFeature (name -> name) xs@(x:_) =
     let parseFirst = readEither x :: Either Text Double
     in case parseFirst of
         Right _ -> SingleCol $ createSingleCol name xs

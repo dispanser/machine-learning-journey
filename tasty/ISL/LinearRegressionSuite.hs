@@ -5,7 +5,7 @@
 module ISL.LinearRegressionSuite where
 
 import qualified ML.Model as M
-import           ML.Dataset.CSV (createDataset)
+import           ML.Dataset.CSV (readRawData)
 import           ML.Dataset (Dataset(..), mkColumn)
 import           ML.Data.Column.Internal (scaleColumn, scale01)
 import qualified ML.Dataset as DS
@@ -151,12 +151,10 @@ spec_ISLRLinearRegressionGD = parallel $
             it "computes R^2" $
                 LR.r2 lr `shouldRoughlyEqual` 0.612
 
-
-
 spec_ISLRLinearRegression :: Spec
 spec_ISLRLinearRegression = parallel $
     describe "Adertising dataset, ISLR chapter 3:" $ do
-        advertisingDataset <- runIO $ createDataset "data/Advertising.csv"
+        advertisingDataset <- runIO readAdvertisingDataset
         describe "simple linear regression for 'sales ~ TV'" $ do
             let Right ms = M.buildModelSpec
                     (featureSpace advertisingDataset) "sales" ["TV"]
@@ -234,3 +232,9 @@ checkVector :: Vector Double -> [Double] -> IO ()
 checkVector xs y = do
     V.length xs `shouldBe` length y
     zipWithM_ (\x ex -> x `shouldRoughlyEqual` ex) (V.toList xs) y
+
+readAdvertisingDataset :: IO Dataset
+readAdvertisingDataset = do
+    Right ds <- DS.parseFullDataset <$> readRawData "data/Advertising.csv"
+    return ds
+

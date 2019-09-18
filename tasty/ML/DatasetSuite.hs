@@ -104,14 +104,15 @@ spec_filterRows = do
 
 spec_CreateFeature :: Spec
 spec_CreateFeature = do
-    it "creates quantitative feature from empty data" $ do
-        createFeature "col1" [] `shouldBe` SingleCol (mkColumn "col1" V.empty)
-    it "creates quantitative feature without N/As" $ do
-        let f = createFeature "col1" ["1.0", "2.0", "3.0"]
-        f `shouldBe` SingleCol (mkColumn "col1" $ V.fromList [1..3])
-    it "creates quantitative feature with N/As replaced by variable mean" $ do
-        let f = createFeature "col1" ["1.0", "NA", "3.0"]
-        f `shouldBe` SingleCol (mkColumn "col1" $ V.fromList [1..3])
+    describe "autodetected feature parser" $ do
+        it "creates quantitative feature from empty data" $ do
+            createFeature "col1" [] `shouldBe` SingleCol (mkColumn "col1" V.empty)
+        it "creates quantitative feature without N/As" $ do
+            let f = createFeature "col1" ["1.0", "2.0", "3.0"]
+            f `shouldBe` SingleCol (mkColumn "col1" $ V.fromList [1..3])
+        it "creates quantitative feature with N/As replaced by variable mean" $ do
+            let f = createFeature "col1" ["1.0", "NA", "3.0"]
+            f `shouldBe` SingleCol (mkColumn "col1" $ V.fromList [1..3])
     describe "categorical features" $ do
         it "creates categorical feature on non-numerical columns" $ do
             let f = createFeature "col1" ["blue", "red", "yellow"]

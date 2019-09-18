@@ -5,7 +5,7 @@
 module Kaggle.HousingExampleCompetition where
 
 import           Control.Monad (mapM_)
-import           ML.Dataset.CSV (createDataset, writeCsv)
+import           ML.Dataset.CSV (writeCsv, readRawData)
 import qualified ML.Dataset as DS
 import qualified ML.Model     as M
 import qualified ML.Model.Validation     as MV
@@ -26,8 +26,8 @@ main = do
             , "RoofStyle"
             ]
 
-    housingDS     <- createDataset "data/housing/train.csv"
-    housingTestDS <- createDataset "data/housing/test.csv"
+    Right housingDS     <- DS.parseFullDataset <$> readRawData "data/housing/train.csv"
+    Right housingTestDS <- DS.parseFullDataset <$> readRawData "data/housing/test.csv"
 
     let Right ms  = M.buildModelSpec (DS.featureSpace housingDS) "SalePrice" cols
         lrModel   = OLS.fitLinearRegression ms
