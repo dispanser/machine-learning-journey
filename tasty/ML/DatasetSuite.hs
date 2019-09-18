@@ -28,9 +28,7 @@ spec_DatasetFromFeatures = do
         it "should have proper name" $
             dsName' `shouldBe` "test01"
         it "contain all input features" $ do
-            dsFeatures `shouldSatisfy` (fDouble `elem`)
-            dsFeatures `shouldSatisfy` (fNAs    `elem`)
-            dsFeatures `shouldSatisfy` (fCat    `elem`)
+            (sortOn featureName dsFeatures) `shouldBe` [fDouble, fNAs, fCat]
         it "contains all columns" $ do
             dsColumns' `shouldSatisfy` (elem colRed)
             length dsColumns' `shouldBe` 4
