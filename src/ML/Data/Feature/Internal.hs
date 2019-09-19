@@ -2,13 +2,13 @@
 
 module ML.Data.Feature.Internal
     ( FeatureType  (..)
-    , Feature'     (..)
+    , Feature     (..)
     , FeatureSpace (..)
     , Metadata     (..)
     , baselineColumn
-    , createFeature'
+    , createFeature
     , featureName
-    , createCategorical'
+    , createCategorical
     ) where
 
 import           GHC.Show (Show(..))
@@ -28,17 +28,17 @@ data FeatureType =
       | Cont { name :: Text }
 
 data Metadata =
-    Categorical'
+    Categorical
         { featName' :: Text
         , baseLabel :: Text
         , otherLabels :: [Text]
         } |
-    Continuous'
+    Continuous
         { featName' :: Text
         , offset    :: Double
         , scale     :: Double } deriving (Show, Eq, Ord)
 
-data Feature' = Feature'
+data Feature = Feature
     { metadata :: Metadata
     , columns  :: [Vector Double] } deriving (Show, Eq)
 
@@ -56,9 +56,9 @@ data FeatureSpace = FeatureSpace
 instance IsString FeatureType where
   fromString = Auto . fromString
 
-instance Summary Feature' where
-  summary (Feature' (Continuous' fn sh sc) [col]) = [summarizeVector fn col]
-  summary (Feature' (Categorical' fn bs ol) cols) =
+instance Summary Feature where
+  summary (Feature (Continuous fn sh sc) [col]) = [summarizeVector fn col]
+  summary (Feature (Categorical fn bs ol) cols) =
       let size           = fromIntegral $ maybe 0 V.length $ listToMaybe cols
           baseFeat       = baselineColumn cols
           fc :: Text -> Vector Double -> Text
@@ -73,14 +73,14 @@ instance Show FeatureSpace where
   show fs = GHC.Show.show (knownFeats fs) <> " | ignored = "
          <>  GHC.Show.show (ignoredCols fs)
 
-createFeature' :: FeatureType -> NonEmpty Text -> Feature'
-createFeature' (Auto name) xs@(x :| rest) =
+createFeature :: FeatureType -> NonEmpty Text -> Feature
+createFeature (Auto name) xs@(x :| rest) =
     let parseFirst = readEither x :: Either Text Double
     in case parseFirst of
         Right _ -> createContinuous undefined name xs
-        Left _  -> createCategorical'  name xs
+        Left _  -> createCategorical  name xs
 
-featureName :: Feature' -> Text
+featureName :: Feature -> Text
 featureName = featName' . metadata
 
 baselineColumn :: [Vector Double] -> Vector Double
@@ -89,19 +89,19 @@ baselineColumn vss =
         vsum i = sum $ (V.! i) <$> vss
     in  V.generate n (\i -> 1.0 - vsum i) :: Vector Double
 
-createContinuous :: ScaleStrategy -> Text -> NonEmpty Text -> Feature'
+createContinuous :: ScaleStrategy -> Text -> NonEmpty Text -> Feature
 createContinuous _sc name (x:|xs) =
     let vs = replaceNAs $ parseNumbers (x:xs)
-    in Feature' (Continuous' name 0 1) [vs]
+    in Feature (Continuous name 0 1) [vs]
 
-createCategorical' :: Text -> NonEmpty Text -> Feature'
-createCategorical' name xs =
+createCategorical :: Text -> NonEmpty Text -> Feature
+createCategorical name xs =
     let klasses                = NE.sort $ NE.nub xs
         (baseFeature, mOthers) = NE.uncons klasses
         others                 = fromMaybe [] (NE.toList <$> mOthers)
         features               = fmap createKlassVector others
         createKlassVector kl   = V.fromList $
             fmap (\d -> if d == kl then 1.0 else 0.0 :: Double) $ NE.toList xs
-        metadata = (Categorical' name baseFeature others)
-    in Feature' metadata $ createKlassVector <$> others
+        metadata = (Categorical name baseFeature others)
+    in Feature metadata $ createKlassVector <$> others
 

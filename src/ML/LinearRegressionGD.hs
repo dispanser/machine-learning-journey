@@ -14,7 +14,7 @@ import           GHC.Show (Show(..))
 import qualified Relude.Unsafe as RU
 import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
-import           ML.Dataset (Feature'(..))
+import           ML.Dataset (Feature(..))
 import qualified ML.Model as M
 import           ML.Model (ModelSpec(..), Predictor(..))
 import qualified ML.LinearRegression as LR
@@ -64,7 +64,7 @@ instance M.Model LinearRegressionGD where
 instance Predictor LinearRegressionGD where
   predict LinearRegressionGD { .. } cols  =
       let prediction = LR.predictLinearRegression lrCoefficients $ VS.convert <$> cols
-      in Feature' (response $ modelSpec cfg) [VS.convert prediction]
+      in Feature (response $ modelSpec cfg) [VS.convert prediction]
 
 linearRegressionGD :: ModelConfig -> M.ModelInit LinearRegressionGD
 linearRegressionGD cfg = M.ModelInit

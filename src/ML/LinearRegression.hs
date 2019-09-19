@@ -7,7 +7,7 @@
 module ML.LinearRegression where
 
 import qualified ML.Model as M
-import           ML.Dataset (Feature'(..), Metadata(..), knownFeats)
+import           ML.Dataset (Feature(..), Metadata(..), knownFeats)
 import qualified ML.Dataset as DS
 import           ML.Model (ModelSpec(..))
 import           ML.Data.Summary
@@ -56,7 +56,7 @@ instance M.Model LinearRegression where
 
 instance M.Predictor LinearRegression where
   predict   LinearRegression { .. } cols  =
-      Feature' (response lrModelSpec) [VS.convert $
+      Feature (response lrModelSpec) [VS.convert $
           predictLinearRegression lrCoefficients $ VS.convert <$> cols]
 
 instance Summary LinearRegression where
@@ -150,7 +150,7 @@ removeFeature fs featName = do
 removeLabel :: DS.FeatureSpace -> Text -> Maybe DS.FeatureSpace
 removeLabel fs colName = do
     (f, l)   <- DS.splitFeatureName colName
-    c@Categorical' {..} <- DS.findFeature fs f
+    c@Categorical {..} <- DS.findFeature fs f
     let newMeta = c { otherLabels = (/= l) `filter` otherLabels }
     let others  = filter (/= c) $ knownFeats fs
     return $ DS.createFeatureSpace (newMeta:others)

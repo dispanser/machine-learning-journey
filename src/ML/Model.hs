@@ -11,11 +11,11 @@ import qualified Relude.Unsafe as RU
 import qualified ML.Dataset as DS
 import qualified Data.Vector.Unboxed as VU
 import           ML.Dataset ( Dataset(..), FeatureSpace(..)
-                            , Metadata(..), Feature')
+                            , Metadata(..), Feature)
 import           Data.Text (Text)
 
 -- initial stub type for prediction result: the column vector of response
-type Prediction = Feature'
+type Prediction = Feature
 
 type FitF  a = [VU.Vector Double] -> VU.Vector Double -> a
 

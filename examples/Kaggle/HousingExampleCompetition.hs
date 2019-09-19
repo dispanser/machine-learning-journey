@@ -44,7 +44,7 @@ main = do
     putStrLn $ "5-fold cross validation MSE: " <> show kFoldMSE
 
     let Just idCol = mkColumn "Id" <$> (DS.colByName' housingTestDS) "Id"
-        (DS.Feature' n [prediction]) = M.predictDataset lrFit housingTestDS
+        (DS.Feature n [prediction]) = M.predictDataset lrFit housingTestDS
         predCol = mkColumn (DS.featName' n) prediction
 
     writeCsv "./submission.csv"

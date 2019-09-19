@@ -7,10 +7,10 @@ import           ML.Model.Validation
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 
-fDouble, fNAs, fCat :: DS.Feature'
-fDouble       = DS.createFeature' "col1" ("1.0" :| ["2.0", "3.0"])
-fNAs          = DS.createFeature' "col2" ("1.0" :| ["NA", "3.0"])
-fCat          = DS.createFeature' "col3" ("red" :| ["yellow", "blue"])
+fDouble, fNAs, fCat :: DS.Feature
+fDouble       = DS.createFeature "col1" ("1.0" :| ["2.0", "3.0"])
+fNAs          = DS.createFeature "col2" ("1.0" :| ["NA", "3.0"])
+fCat          = DS.createFeature "col3" ("red" :| ["yellow", "blue"])
 
 spec_NegateRS :: Spec
 spec_NegateRS = do

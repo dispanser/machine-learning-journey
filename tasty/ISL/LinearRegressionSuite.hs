@@ -38,7 +38,7 @@ babyRegression cfgF = do
             Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x"]
             predictor = M.fitDataset (cfgF ms) ds
         it "should correctly predict an unseen point" $ do -- black-box testing
-            let (DS.Feature' _ [res]) = M.predict predictor [xTest]
+            let (DS.Feature _ [res]) = M.predict predictor [xTest]
             checkVector (V.convert res) [-1, 1 .. 9]
 
 spec_TestingRescalingBehavior :: Spec
@@ -217,7 +217,7 @@ spec_EmptyClassLinearRegression = do
                 Right ms = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
                 model    = LR.fitLinearRegression ms
                 lrFit    = M.fitSubset model (<= 2) ds
-                (DS.Feature' _ [prediction]) = M.predictSubset lrFit (>=3) ds
+                (DS.Feature _ [prediction]) = M.predictSubset lrFit (>=3) ds
             checkVector (LR.coefficients lrFit) [-0.3, 0.1] -- intercept and oth only
             checkVector (V.convert prediction) [0.5, 0.4]
 

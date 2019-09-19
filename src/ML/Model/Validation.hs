@@ -49,7 +49,7 @@ runWithTestSet :: M.Model a => M.ModelInit a -> Dataset -> RowSelector -> Double
 runWithTestSet mi@M.ModelInit { .. } ds rs =
     let mFit                = M.fitSubset mi rs ds
         testRS              = negateRowSelector rs
-        (DS.Feature' _ [p]) = M.predictSubset mFit testRS ds
+        (DS.Feature _ [p]) = M.predictSubset mFit testRS ds
         testResponse        = DS.filterDataColumn testRS $
             M.extractResponseVector ds modelSpec
         testError           = V.sum $ V.map (^(2::Int)) $

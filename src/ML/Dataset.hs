@@ -12,12 +12,12 @@ module ML.Dataset
   , C.filterDataColumn
   , C.columnVariance
   , FeatureType(..)
-  , Feature'(..)
+  , Feature(..)
   , FeatureSpace(..)
   , Metadata(..)
-  , F.createFeature'
+  , F.createFeature
   , F.featureName
-  , F.createCategorical'
+  , F.createCategorical
   ) where
 
 import           GHC.Show (Show(..))
@@ -29,7 +29,7 @@ import           ML.Data.Summary
 import qualified ML.Data.Column.Internal as C
 import           ML.Data.Column.Internal (RowSelector , ColumnTransformer)
 import qualified ML.Data.Feature.Internal as F
-import           ML.Data.Feature.Internal ( FeatureType(..),  Feature'(..)
+import           ML.Data.Feature.Internal ( FeatureType(..),  Feature(..)
                                           , FeatureSpace(..), Metadata(..))
 type ParseError = String
 
@@ -42,11 +42,11 @@ data RawData = RawData
 -- exposing functions over our data so it's probably ok to just provide both.
 data Dataset = Dataset
     { dsName'      :: T.Text
-    , dsFeatures   :: [Feature']
+    , dsFeatures   :: [Feature]
     , dsNumRows'   :: Int
     , dsNumCols'   :: Int
     , colByName'   :: T.Text  -> Maybe (Vector Double)
-    , featByName   :: T.Text  -> Maybe Feature'
+    , featByName   :: T.Text  -> Maybe Feature
     , featureSpace :: FeatureSpace
     }
 
@@ -58,7 +58,7 @@ instance Summary Dataset where
 
 parseDataset :: [FeatureType] -> RawData -> Either ParseError Dataset
 parseDataset fs RawData {..} =
-    let feature ft = F.createFeature' ft <$> dataColumn (name ft)
+    let feature ft = F.createFeature ft <$> dataColumn (name ft)
         features   = traverse feature fs
     in createFromFeatures "unknown dataset" <$> features
 
@@ -67,7 +67,7 @@ parseFullDataset rd =
     let features = Auto <$> names rd
     in parseDataset features rd
 
-createFromFeatures :: T.Text -> [Feature'] -> Dataset
+createFromFeatures :: T.Text -> [Feature] -> Dataset
 createFromFeatures name feats =
     let dsName'      = name
         dsFeatures   = sortOn F.featureName feats
@@ -81,8 +81,8 @@ createFromFeatures name feats =
         findMissingClass :: T.Text -> Maybe (Vector Double)
         findMissingClass (splitFeatureName -> Just (feat, klass)) =
             featByName feat >>= \case
-                Feature' (Continuous' _ _ _) _ -> Nothing
-                (Feature' (Categorical' _ baseFeature _) vss) ->
+                Feature (Continuous _ _ _) _ -> Nothing
+                (Feature (Categorical _ baseFeature _) vss) ->
                     if baseFeature == klass
                        then return $ F.baselineColumn vss
                        else return $ V.replicate dsNumRows' 0.0
@@ -95,7 +95,7 @@ extractDataColumns ds FeatureSpace { .. } =
     concatMap (featureVectors' ds) knownFeats
 
 featureVectors' :: Dataset -> Metadata -> [Vector Double]
-featureVectors' ds Categorical' {..} =
+featureVectors' ds Categorical {..} =
     let colNames = ((featName' <>) "_" <>) <$> otherLabels
     in fromMaybe [] $ sequence $ colByName' ds <$> colNames
 featureVectors' ds (featName' -> name) = maybe [] columns $ featByName ds name
@@ -130,5 +130,5 @@ columnNames :: FeatureSpace -> [Text]
 columnNames = concatMap featColNames . knownFeats
 
 featColNames :: Metadata -> [Text]
-featColNames Continuous' {..}  = [featName']
-featColNames Categorical' {..} = ((featName' <> "_") <>) <$> otherLabels
+featColNames Continuous {..}  = [featName']
+featColNames Categorical {..} = ((featName' <> "_") <>) <$> otherLabels

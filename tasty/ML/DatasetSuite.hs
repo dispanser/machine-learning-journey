@@ -9,10 +9,10 @@ import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 import qualified Data.Vector.Unboxed as V
 
-fDouble, fNAs, fCat :: Feature'
-fDouble       = createFeature' "col1" ["1.0", "2.0", "3.0"]
-fNAs          = createFeature' "col2" ["1.0", "NA", "3.0"]
-fCat          = createFeature' "col3" ["red", "yellow", "blue"]
+fDouble, fNAs, fCat :: Feature
+fDouble       = createFeature "col1" ["1.0", "2.0", "3.0"]
+fNAs          = createFeature "col2" ["1.0", "NA", "3.0"]
+fCat          = createFeature "col3" ["red", "yellow", "blue"]
 
 spec_DatasetFromFeatures :: Spec
 spec_DatasetFromFeatures = do
@@ -57,7 +57,7 @@ spec_extractDataColumns = do
             -- we create a dataset with an additional color, green,
             -- to make sure that using the previously defind feature space,
             -- we still only retrieve the columns for red and yellow
-            let fGreen   = createFeature' "col3" ["red", "yellow", "blue", "green"]
+            let fGreen   = createFeature "col3" ["red", "yellow", "blue", "green"]
                 Just fC3 = (findFeature fs) "col3"
                 dataset' = createFromFeatures "hspec" [fGreen]
             featureVectors' dataset' fC3 `shouldBe`
@@ -67,7 +67,7 @@ spec_extractDataColumns = do
             -- we create a dataset that's missing a color (yellow)
             -- to make sure that using the previously defind feature space,
             -- we still retrieve the columns for both red and yellow
-            let fNoY     = createFeature' "col3" ["red", "blue"]
+            let fNoY     = createFeature "col3" ["red", "blue"]
                 Just fC3 = (findFeature fs) "col3"
                 dataset' = createFromFeatures "hspec" [fNoY]
             featureVectors' dataset' fC3 `shouldBe`
@@ -78,16 +78,16 @@ spec_extractDataColumns = do
             -- that is the new baseline (lexicographically smallest)
             -- to make sure that using the previously defind feature space,
             -- we still only retrieve the columns for red and yellow
-            let fAmber   = createFeature' "col3" ["amber", "yellow", "blue", "amber"]
+            let fAmber   = createFeature "col3" ["amber", "yellow", "blue", "amber"]
                 Just fC3 = (findFeature fs) "col3"
                 dataset' = createFromFeatures "hspec" [fAmber]
             featureVectors' dataset' fC3 `shouldBe`
                 [ V.fromList [0.0, 0.0, 0.0, 0.0]
                 , V.fromList [0.0, 1.0, 0.0, 0.0]]
         it "somehow doesn't figure out the proper order" $ do
-            let fXYZ = createFeature' "zyx" ["1.0", "2.0", "3.0"]
-                fFCC = createFeature' "fcc" ["1.0", "NA", "3.0"]
-                fBAC = createFeature' "bac" ["red", "yellow", "blue"]
+            let fXYZ = createFeature "zyx" ["1.0", "2.0", "3.0"]
+                fFCC = createFeature "fcc" ["1.0", "NA", "3.0"]
+                fBAC = createFeature "bac" ["red", "yellow", "blue"]
                 ds   = createFromFeatures "hspec" [fXYZ, fFCC, fBAC]
                 fs   = featureSpace ds
             colByName' ds "zyx" `shouldBe` Just [1.0, 2.0, 3.0]
@@ -101,34 +101,34 @@ spec_createFeature :: Spec
 spec_createFeature = do
     describe "autodetection feature parser" $ do
         it "handles a continuous variable" $
-            createFeature' "autodetected" ("1.0" :| ["2.0", "3.0", "4.0", "5.0"]) `shouldBe`
-                (Feature' (Continuous' "autodetected" 0 1) ([[1.0, 2.0, 3.0, 4.0, 5.0]]))
+            createFeature "autodetected" ("1.0" :| ["2.0", "3.0", "4.0", "5.0"]) `shouldBe`
+                (Feature (Continuous "autodetected" 0 1) ([[1.0, 2.0, 3.0, 4.0, 5.0]]))
         it "creates categorical feature on non-numerical columns" $ do
-            let f = createFeature' "col1" ["blue", "red", "yellow"]
-            f `shouldBe` Feature' (Categorical' "col1" "blue" ["red", "yellow"]) [[0.0, 1.0, 0.0 ], [0.0, 0.0, 1.0 ]]
+            let f = createFeature "col1" ["blue", "red", "yellow"]
+            f `shouldBe` Feature (Categorical "col1" "blue" ["red", "yellow"]) [[0.0, 1.0, 0.0 ], [0.0, 0.0, 1.0 ]]
 
 spec_CreateFeature :: Spec
 spec_CreateFeature = do
     describe "autodetected feature parser" $ do
         -- it "creates quantitative feature from empty data" $ do
-        --     let f = createFeature' "col1" []
+        --     let f = createFeature "col1" []
         --     columns f  `shouldBe` [V.empty]
         --     featName' (metadata f) `shouldBe` "col1"
         it "creates quantitative feature without N/As" $ do
-            let f = createFeature' "col1" ["1.0", "2.0", "3.0"]
+            let f = createFeature "col1" ["1.0", "2.0", "3.0"]
             columns f `shouldBe` [[1, 2, 3]]
             -- f `shouldBe` SingleCol (mkColumn "col1" $ V.fromList )
         it "creates quantitative feature with N/As replaced by variable mean" $ do
-            let f = createFeature' "col1" ["1.0", "NA", "3.0"]
+            let f = createFeature "col1" ["1.0", "NA", "3.0"]
             columns f `shouldBe` [[1..3]]
     describe "categorical features" $ do
         it "creates categorical feature on non-numerical columns" $ do
-            let f = createFeature' "col1" ["blue", "red", "yellow"]
+            let f = createFeature "col1" ["blue", "red", "yellow"]
             columns f `shouldBe` [ [0.0, 1.0, 0.0 ], [0.0, 0.0, 1.0 ] ]
             (baseLabel $ metadata f)   `shouldBe` "blue"
             (otherLabels $ metadata f) `shouldBe` ["red", "yellow"]
         it "columns and base feature have canonical ordering" $ do
-            let f = createFeature' "col1" ["red", "yellow", "blue"]
+            let f = createFeature "col1" ["red", "yellow", "blue"]
             columns f `shouldBe` [ [1.0, 0.0, 0.0 ], [0.0, 1.0, 0.0 ] ]
             (baseLabel $ metadata f)   `shouldBe` "blue"
             (otherLabels $ metadata f) `shouldBe` ["red", "yellow"]
