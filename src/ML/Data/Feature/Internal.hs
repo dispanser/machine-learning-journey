@@ -9,10 +9,15 @@ module ML.Data.Feature.Internal
     , createFeature
     , featureName
     , createCategorical
+    , auto
+    , scaled01
+    , scaled
+    , noScaling
     ) where
 
 import           GHC.Show (Show(..))
-import           ML.Data.Vector (summarizeVector, replaceNAs, parseNumbers)
+import           ML.Data.Vector ( noScaling, summarizeVector, replaceNAs
+                                , parseNumbers , scale01, scaleWith)
 import           ML.Data.Summary
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -21,11 +26,13 @@ import qualified Data.Vector.Unboxed as V
 
 type Scaling           = (Double, Double)
 type ScaleStrategy     = Vector Double -> Scaling
+type FeatureConstructor = Text -> FeatureType
 
 data FeatureType =
-    Auto { name :: Text }
-      | Cat { name :: Text }
-      | Cont { name :: Text }
+    Auto     { name :: Text }
+      | Cat  { name :: Text }
+      | Cont { name :: Text
+             , scaleStrategy :: ScaleStrategy }
 
 data Metadata =
     Categorical
@@ -35,8 +42,8 @@ data Metadata =
         } |
     Continuous
         { featName' :: Text
-        , offset    :: Double
-        , scale     :: Double } deriving (Show, Eq, Ord)
+        , scaling   :: Scaling
+        } deriving (Show, Eq, Ord)
 
 data Feature = Feature
     { metadata :: Metadata
@@ -57,7 +64,7 @@ instance IsString FeatureType where
   fromString = Auto . fromString
 
 instance Summary Feature where
-  summary (Feature (Continuous fn sh sc) [col]) = [summarizeVector fn col]
+  summary (Feature (Continuous fn sc) [col]) = [summarizeVector fn col]
   summary (Feature (Categorical fn bs ol) cols) =
       let size           = fromIntegral $ maybe 0 V.length $ listToMaybe cols
           baseFeat       = baselineColumn cols
@@ -77,8 +84,9 @@ createFeature :: FeatureType -> NonEmpty Text -> Feature
 createFeature (Auto name) xs@(x :| rest) =
     let parseFirst = readEither x :: Either Text Double
     in case parseFirst of
-        Right _ -> createContinuous undefined name xs
+        Right _ -> createContinuous noScaling name xs
         Left _  -> createCategorical  name xs
+createFeature (Cont n s) xs = createContinuous s n xs
 
 featureName :: Feature -> Text
 featureName = featName' . metadata
@@ -90,9 +98,11 @@ baselineColumn vss =
     in  V.generate n (\i -> 1.0 - vsum i) :: Vector Double
 
 createContinuous :: ScaleStrategy -> Text -> NonEmpty Text -> Feature
-createContinuous _sc name (x:|xs) =
-    let vs = replaceNAs $ parseNumbers (x:xs)
-    in Feature (Continuous name 0 1) [vs]
+createContinuous ss name xx@(x:|xs) =
+    let vsRaw   = replaceNAs $ parseNumbers (x:xs)
+        scaling = ss vsRaw
+        vs      = scaleWith scaling vsRaw
+    in Feature (Continuous name scaling) [vs]
 
 createCategorical :: Text -> NonEmpty Text -> Feature
 createCategorical name xs =
@@ -105,3 +115,11 @@ createCategorical name xs =
         metadata = (Categorical name baseFeature others)
     in Feature metadata $ createKlassVector <$> others
 
+auto :: FeatureConstructor
+auto = Auto
+
+scaled01 :: FeatureConstructor
+scaled01 = scaled scale01
+
+scaled :: ScaleStrategy -> FeatureConstructor
+scaled = flip Cont

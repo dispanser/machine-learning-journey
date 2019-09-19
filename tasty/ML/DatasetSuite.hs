@@ -84,52 +84,9 @@ spec_extractDataColumns = do
             featureVectors' dataset' fC3 `shouldBe`
                 [ V.fromList [0.0, 0.0, 0.0, 0.0]
                 , V.fromList [0.0, 1.0, 0.0, 0.0]]
-        it "somehow doesn't figure out the proper order" $ do
-            let fXYZ = createFeature "zyx" ["1.0", "2.0", "3.0"]
-                fFCC = createFeature "fcc" ["1.0", "NA", "3.0"]
-                fBAC = createFeature "bac" ["red", "yellow", "blue"]
-                ds   = createFromFeatures "hspec" [fXYZ, fFCC, fBAC]
-                fs   = featureSpace ds
-            colByName' ds "zyx" `shouldBe` Just [1.0, 2.0, 3.0]
 
 spec_filterRows :: Spec
 spec_filterRows = do
     it "filters to keep even rows" $ do
         filterDataColumn even [1.0, 2.0, 3.0, 4.0, 5.0] `shouldBe` [1.0, 3.0, 5.0::Double]
-
-spec_createFeature :: Spec
-spec_createFeature = do
-    describe "autodetection feature parser" $ do
-        it "handles a continuous variable" $
-            createFeature "autodetected" ("1.0" :| ["2.0", "3.0", "4.0", "5.0"]) `shouldBe`
-                (Feature (Continuous "autodetected" 0 1) ([[1.0, 2.0, 3.0, 4.0, 5.0]]))
-        it "creates categorical feature on non-numerical columns" $ do
-            let f = createFeature "col1" ["blue", "red", "yellow"]
-            f `shouldBe` Feature (Categorical "col1" "blue" ["red", "yellow"]) [[0.0, 1.0, 0.0 ], [0.0, 0.0, 1.0 ]]
-
-spec_CreateFeature :: Spec
-spec_CreateFeature = do
-    describe "autodetected feature parser" $ do
-        -- it "creates quantitative feature from empty data" $ do
-        --     let f = createFeature "col1" []
-        --     columns f  `shouldBe` [V.empty]
-        --     featName' (metadata f) `shouldBe` "col1"
-        it "creates quantitative feature without N/As" $ do
-            let f = createFeature "col1" ["1.0", "2.0", "3.0"]
-            columns f `shouldBe` [[1, 2, 3]]
-            -- f `shouldBe` SingleCol (mkColumn "col1" $ V.fromList )
-        it "creates quantitative feature with N/As replaced by variable mean" $ do
-            let f = createFeature "col1" ["1.0", "NA", "3.0"]
-            columns f `shouldBe` [[1..3]]
-    describe "categorical features" $ do
-        it "creates categorical feature on non-numerical columns" $ do
-            let f = createFeature "col1" ["blue", "red", "yellow"]
-            columns f `shouldBe` [ [0.0, 1.0, 0.0 ], [0.0, 0.0, 1.0 ] ]
-            (baseLabel $ metadata f)   `shouldBe` "blue"
-            (otherLabels $ metadata f) `shouldBe` ["red", "yellow"]
-        it "columns and base feature have canonical ordering" $ do
-            let f = createFeature "col1" ["red", "yellow", "blue"]
-            columns f `shouldBe` [ [1.0, 0.0, 0.0 ], [0.0, 1.0, 0.0 ] ]
-            (baseLabel $ metadata f)   `shouldBe` "blue"
-            (otherLabels $ metadata f) `shouldBe` ["red", "yellow"]
 

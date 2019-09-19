@@ -81,7 +81,7 @@ createFromFeatures name feats =
         findMissingClass :: T.Text -> Maybe (Vector Double)
         findMissingClass (splitFeatureName -> Just (feat, klass)) =
             featByName feat >>= \case
-                Feature (Continuous _ _ _) _ -> Nothing
+                Feature (Continuous _ _) _ -> Nothing
                 (Feature (Categorical _ baseFeature _) vss) ->
                     if baseFeature == klass
                        then return $ F.baselineColumn vss
