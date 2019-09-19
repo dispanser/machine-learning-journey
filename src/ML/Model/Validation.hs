@@ -9,7 +9,6 @@ module ML.Model.Validation
 
      where
 
-import qualified Relude.Unsafe as RU
 import qualified ML.Model as M
 import           ML.Dataset (Dataset, RowSelector)
 import qualified ML.Dataset as DS
@@ -48,11 +47,11 @@ validateModel modelFit seed ds =
 
 runWithTestSet :: M.Model a => M.ModelInit a -> Dataset -> RowSelector -> Double
 runWithTestSet mi@M.ModelInit { .. } ds rs =
-    let mFit         = M.fitSubset mi rs ds
-        testRS       = negateRowSelector rs
-        prediction   = RU.head $ DS.featureVectors $ M.predictSubset mFit testRS ds
-        testResponse = DS.colData . DS.filterDataColumn testRS $
+    let mFit                = M.fitSubset mi rs ds
+        testRS              = negateRowSelector rs
+        (DS.Feature' _ [p]) = M.predictSubset mFit testRS ds
+        testResponse        = DS.filterDataColumn testRS $
             M.extractResponseVector ds modelSpec
-        testError    = V.sum $ V.map (^(2::Int)) $ V.zipWith (-)
-            prediction testResponse
-    in testError / fromIntegral (V.length prediction)
+        testError           = V.sum $ V.map (^(2::Int)) $
+            V.zipWith (-) p testResponse
+    in testError / fromIntegral (V.length p)

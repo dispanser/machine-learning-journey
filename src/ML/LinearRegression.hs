@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -6,7 +7,7 @@
 module ML.LinearRegression where
 
 import qualified ML.Model as M
-import           ML.Dataset (Feature(..), Column(..), mkColumn)
+import           ML.Dataset (Feature'(..), Metadata(..), knownFeats)
 import qualified ML.Dataset as DS
 import           ML.Model (ModelSpec(..))
 import           ML.Data.Summary
@@ -23,11 +24,10 @@ import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
 import           Statistics.Distribution.StudentT (studentT)
 import           Statistics.Distribution (complCumulative)
+import qualified Debug.Trace as D
 
 data LinearRegression = LinearRegression
-    { lrFeatureNames   :: [T.Text]
-    , lrResponseName   :: T.Text
-    , lrCoefficients   :: Vector Double
+    { lrCoefficients   :: Vector Double
     , lrStandardErrors :: Vector Double
     , lrTss            :: Double
     , lrRss            :: Double
@@ -56,25 +56,27 @@ instance M.Model LinearRegression where
 
 instance M.Predictor LinearRegression where
   predict   LinearRegression { .. } cols  =
-      SingleCol . mkColumn lrResponseName $ VS.convert $
-          predictLinearRegression lrCoefficients $
-              VS.convert . colData <$> cols
+      Feature' (response lrModelSpec) [VS.convert $
+          predictLinearRegression lrCoefficients $ VS.convert <$> cols]
 
 instance Summary LinearRegression where
   summary = summarizeLinearRegression
 
 summarizeLinearRegression :: LinearRegression -> [T.Text]
 summarizeLinearRegression lr@LinearRegression { .. }  =
-    [ formatFormula lrResponseName lrFeatureNames
-    , "Feature           | coefficient |  std error  |  t-stats |  p-value"
-    , "------------------+-------------+-------------+----------+---------"
-    ] ++
-        (V.toList $ V.zipWith3 (formatCoefficientInfo $ fromIntegral lrDF)
-            (V.fromList $ "Intercept" : lrFeatureNames)
+    let featureNames = DS.columnNames $ features' lrModelSpec
+    in [ formatFormula
+        (M.responseName lrModelSpec)
+        featureNames
+       , "Feature           | coefficient |  std error  |  t-stats |  p-value"
+       , "------------------+-------------+-------------+----------+---------"
+       ] ++
+           (V.toList $ V.zipWith3 (formatCoefficientInfo $ fromIntegral lrDF)
+            (V.fromList $ "Intercept" : featureNames)
             (V.convert lrCoefficients) (V.convert lrStandardErrors)) ++
-        [ ""
-        , F.sformat ("R^2         : " % F.fixed 4) (r2 lr)
-        , F.sformat ("F-Statistics: " % F.fixed 4) $ fStatistics lr]
+                [ ""
+                , F.sformat ("R^2         : " % F.fixed 4) (r2 lr)
+                , F.sformat ("F-Statistics: " % F.fixed 4) $ fStatistics lr]
 
 -- format the features and response used for the regression, R-style
 formatFormula :: T.Text -> [T.Text] -> T.Text
@@ -103,11 +105,12 @@ fitLinearRegression ms = M.ModelInit
 
 fitLR :: ModelSpec -> M.FitF LinearRegression
 fitLR ms inputCols response =
-    let y  = VS.convert . colData $ response
+    let y  = VS.convert response
         n  = VS.length y
-        (removedCols, featureCols) =
-            L.partition ((==0.0) . DS.columnVariance) inputCols
-        xs = VS.convert . colData <$> featureCols
+        (removedCols, featureCols) = L.partition
+            ((==0.0) . DS.columnVariance . snd) $
+                zip (DS.columnNames $ features' ms) inputCols
+        xs = VS.convert . snd <$> featureCols
         xX = prepareMatrix n xs
         p  = pred $ M.cols xX
         lrDF             = n - p - 1
@@ -122,11 +125,35 @@ fitLR ms inputCols response =
         mse'             = lrRss / fromIntegral lrDF
         lrStandardErrors = M.takeDiag $ M.scale mse' (
             M.inv . M.unSym $ M.mTm xX) ** 0.5
-        lrResponseName   = colName response
-        lrFeatureNames   = colName <$> inputCols
-        fs'              = (features' ms) { DS.ignoredCols = colName <$> removedCols }
+        -- TODO: re-instantiate. probably by tupling the columns with their
+        -- name, and then filtering out, and using these names here, somehow
+        fs'              = foldl' removeColumn (features' ms) (fst <$> removedCols)
         lrModelSpec      = ms { features' =  fs' }
     in  LinearRegression { .. }
+
+-- remove a dropped column from the feature space,
+-- TODO: this screams lenses, updating some inner struct by throwing out stuff
+removeColumn :: DS.FeatureSpace -> Text -> DS.FeatureSpace
+removeColumn fs colName = fromMaybe fs $ removeFeature fs colName <|> removeLabel fs colName
+
+removeFeature :: DS.FeatureSpace -> Text -> Maybe DS.FeatureSpace
+removeFeature fs featName = do
+    feat <- DS.findFeature fs featName
+    return $ fs { knownFeats = filter (/= feat) $ knownFeats fs }
+
+
+
+-- remove a label from the metadata of a feature space, to hide it from
+-- being used. This is relevant when filtering out constant columns to
+-- prevent singular matrices etc.
+-- TODO: this screams lenses, updating some inner struct by throwing out stuff
+removeLabel :: DS.FeatureSpace -> Text -> Maybe DS.FeatureSpace
+removeLabel fs colName = do
+    (f, l)   <- DS.splitFeatureName colName
+    c@Categorical' {..} <- DS.findFeature fs f
+    let newMeta = c { otherLabels = (/= l) `filter` otherLabels }
+    let others  = filter (/= c) $ knownFeats fs
+    return $ DS.createFeatureSpace (newMeta:others)
 
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =

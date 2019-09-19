@@ -10,12 +10,13 @@ import qualified ML.Dataset as DS
 import qualified ML.Model     as M
 import qualified ML.Model.Validation     as MV
 import qualified ML.LinearRegression as OLS
+import           ML.Data.Column.Internal (mkColumn)
 import           ML.Data.Summary (summary)
 
 main :: IO ()
 main = do
     let cols =
-            [ "LotArea", "YearBuilt", "1stFlrSF", "2ndFlrSF"
+            [ "LotArea" , "YearBuilt", "1stFlrSF", "2ndFlrSF"
             , "BedroomAbvGr", "TotRmsAbvGrd", "OverallCond"
             , "OverallQual", "LandSlope" , "BldgType", "ExterQual"
             , "MSSubClass", "GarageArea", "BsmtFullBath"
@@ -29,6 +30,7 @@ main = do
     Right housingDS     <- DS.parseFullDataset <$> readRawData "data/housing/train.csv"
     Right housingTestDS <- DS.parseFullDataset <$> readRawData "data/housing/test.csv"
 
+    mapM_ print $ summary housingDS
     let Right ms  = M.buildModelSpec (DS.featureSpace housingDS) "SalePrice" cols
         lrModel   = OLS.fitLinearRegression ms
         lrFit     = M.fitDataset lrModel housingDS
@@ -41,11 +43,12 @@ main = do
     let kFoldMSE = MV.kFoldModel lrModel 1 5 housingDS
     putStrLn $ "5-fold cross validation MSE: " <> show kFoldMSE
 
-    let Just idCol = (DS.colByName' housingTestDS) "Id"
-        prediction = DS.featureColumn $ M.predictDataset lrFit housingTestDS
+    let Just idCol = mkColumn "Id" <$> (DS.colByName' housingTestDS) "Id"
+        (DS.Feature' n [prediction]) = M.predictDataset lrFit housingTestDS
+        predCol = mkColumn (DS.featName' n) prediction
 
     writeCsv "./submission.csv"
       [ (idCol, show . (round :: Double -> Int))
-      , (prediction, show)]
+      , (predCol, show)]
 
 

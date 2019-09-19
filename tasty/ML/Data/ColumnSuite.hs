@@ -13,3 +13,12 @@ prop_Rescaled (NonEmpty xs) = (DL.maximum xs /= DL.minimum xs) ==>
         minV = V.minimum $ colData vs
         maxV = V.maximum $ colData vs
     in minV >= 0 && maxV <= 1
+
+-- spec_OneHot :: Spec
+-- spec_OneHot = do
+--     let rawData    = VB.fromList ["Y", "X", "Z", "Y", "Z"]
+--         oneHot'    = parser $ oneHot "testcat"
+--         (vss, trF) = oneHot' rawData
+--     describe "one-hot encoding should" $ do
+--         it "should produce one less vector than we have labels" $
+--             length vss `shouldBe` 2

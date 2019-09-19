@@ -5,18 +5,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-{-
-Very simple prototype of how to represent data
-
-This is far away from being usable:
-- we assume everything's a double
-- no support for categorical features
-- no support for N/A
--}
-
 module ML.Dataset
-  ( Column, colData, colName, mkColumn
-  , RowSelector
+  ( RowSelector
   , ColumnTransformer
   , module ML.Dataset -- TODO: replace module export with concrete stuff
   , C.filterDataColumn
@@ -24,14 +14,15 @@ module ML.Dataset
   ) where
 
 import           GHC.Show (Show(..))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
 import           ML.Data.Summary
 import qualified ML.Data.Column.Internal as C
-import           ML.Data.Column.Internal (Column(..), RowSelector
-                                         , ColumnTransformer, mkColumn)
+import           ML.Data.Column.Internal ( RowSelector , ColumnTransformer
+                                         , summarizeVector)
 type ParseError = String
 
 data FeatureType =
@@ -45,19 +36,21 @@ instance IsString FeatureType where
 
 data RawData = RawData
     { names      :: [Text]
-    , dataColumn :: Text -> Either ParseError [Text]
+    , dataColumn :: Text -> Either ParseError (NonEmpty Text)
     }
+
+type Scaling           = (Double, Double)
+type ScaleStrategy     = Vector Double -> Scaling
 
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
 data Dataset = Dataset
     { dsName'      :: T.Text
-    , dsFeatures   :: [Feature Double]
-    , dsColumns'   :: [Column Double]
+    , dsFeatures   :: [Feature']
     , dsNumRows'   :: Int
     , dsNumCols'   :: Int
-    , colByName'   :: T.Text  -> Maybe (Column Double)
-    , featByName   :: T.Text  -> Maybe (Feature Double)
+    , colByName'   :: T.Text  -> Maybe (Vector Double)
+    , featByName   :: T.Text  -> Maybe Feature'
     , featureSpace :: FeatureSpace
     }
 
@@ -69,44 +62,50 @@ instance Show Dataset where
 -- dataset, features that where used to train a model,
 -- result for variable selection algorithm, etc).
 data FeatureSpace = FeatureSpace
-    { findFeature :: Text -> Maybe FeatureSpec
-    , knownFeats  :: [FeatureSpec]
-    , ignoredCols :: [Text]
+    { findFeature :: Text -> Maybe Metadata
+    , knownFeats  :: [Metadata]
+    , ignoredCols :: [Text] -- TODO: gone with it
     }
 
 instance Show FeatureSpace where
-  show fs = GHC.Show.show (knownFeats fs) <> " | "
+  show fs = GHC.Show.show (knownFeats fs) <> " | ignored = "
          <>  GHC.Show.show (ignoredCols fs)
 
--- TODO: this is a subset of the information that's currently stored
--- as part of the Feature itself.
-data FeatureSpec = FeatureSpec
-    { featName          :: Text
-    , column            :: Text
-    , additionalColumns :: [Text]
-    } deriving (Eq, Show)
+data Feature' = Feature'
+    { metadata :: Metadata
+    , columns  :: [Vector Double] } deriving (Show, Eq)
 
-data Categorical a = Categorical
-    { className   :: Text
-    , baseFeature :: Text
-    , features    :: [Column a] } deriving (Eq, Show)
+data Metadata =
+    Categorical'
+        { featName' :: Text
+        , baseLabel :: Text
+        , otherLabels :: [Text]
+        } |
+    Continuous'
+        { featName' :: Text
+        , offset    :: Double
+        , scale     :: Double } deriving (Show, Eq, Ord)
 
-data Feature a = SingleCol (Column a)
-               | MultiCol  (Categorical a) deriving (Eq, Show)
+instance Summary Feature' where
+  summary (Feature' (Continuous' fn sh sc) [col]) = [summarizeVector fn col]
+  summary (Feature' (Categorical' fn bs ol) cols) =
+      let size           = fromIntegral $ maybe 0 V.length $ listToMaybe cols
+          baseFeat       = baselineColumn cols
+          fc :: Text -> Vector Double -> Text
+          fc name xs = sformat (textF 5 % ": n=" % intF % " " % percF % "%")
+            name
+            (round $ V.sum xs)
+            (dSc $ 100.0*(V.sum xs)/size)
+          texts = uncurry fc <$> (bs,baseFeat):(zip ol cols)
+    in [sformat (textF 13) fn <> (T.intercalate " | " $ texts)]
 
-instance Summary (Feature Double) where
-  summary (SingleCol col) = summary col
-  summary (MultiCol cat ) = summary cat
 
 instance Summary Dataset where
   summary ds = concatMap summary $ dsFeatures ds
 
-instance Summary (Categorical Double) where
-  summary = (:[]) . summarizeCategorical
-
 parseDataset :: [FeatureType] -> RawData -> Either ParseError Dataset
 parseDataset fs RawData {..} =
-    let feature ft = createFeature ft <$> dataColumn (name ft)
+    let feature ft = createFeature' ft <$> dataColumn (name ft)
         features   = traverse feature fs
     in createFromFeatures "unknown dataset" <$> features
 
@@ -115,59 +114,44 @@ parseFullDataset rd =
     let features = Auto <$> names rd
     in parseDataset features rd
 
-createFromFeatures :: T.Text -> [Feature Double] -> Dataset
+createFromFeatures :: T.Text -> [Feature'] -> Dataset
 createFromFeatures name feats =
     let dsName'      = name
-        dsFeatures   = feats
-        dsColumns'   = concatMap featureColumns feats
-        dsNumRows'   = fromMaybe 0 $ featureSize <$> listToMaybe feats
-        dsNumCols'   = length dsColumns'
-        columnIndex  = M.fromList $ zip (colName <$> dsColumns') dsColumns'
-        featureIndex = M.fromList $ zip (featureName <$> feats) feats
+        dsFeatures   = sortOn featureName feats
+        featureSpace = createFeatureSpace $ metadata <$> dsFeatures
+        columnsInSet = concatMap columns dsFeatures
+        dsNumRows'   = fromMaybe 0 (V.length <$> (listToMaybe columnsInSet))
+        dsNumCols'   = length columnsInSet
+        columnIndex  = M.fromList $ zip (columnNames featureSpace) columnsInSet
+        featureIndex = M.fromList $ zip (featureName <$> dsFeatures) dsFeatures
         featByName f = M.lookup f featureIndex
-        findMissingClass :: T.Text -> Maybe (Column Double)
+        findMissingClass :: T.Text -> Maybe (Vector Double)
         findMissingClass (splitFeatureName -> Just (feat, klass)) =
             featByName feat >>= \case
-                SingleCol _                    -> Nothing
-                MultiCol  c@Categorical { .. } ->
+                Feature' (Continuous' _ _ _) _ -> Nothing
+                (Feature' (Categorical' _ baseFeature _) vss) ->
                     if baseFeature == klass
-                       then return $ baselineColumn feat c
-                       else return $ C.mkColumn (feat <> "_" <> klass) $
-                           V.replicate dsNumRows' 0.0
+                       then return $ baselineColumn vss
+                       else return $ V.replicate dsNumRows' 0.0
         findMissingClass _ = Nothing
         colByName' c = whenNothing (M.lookup c columnIndex) (findMissingClass c)
-        featureSpace = createFeatureSpace $ createFeatureSpec <$> feats
     in Dataset { .. }
 
--- TODO: Either Text ? notion of missing / spec mismatch?
-extractDataColumns :: Dataset -> FeatureSpace -> [Column Double]
+extractDataColumns :: Dataset -> FeatureSpace -> [Vector Double]
 extractDataColumns ds FeatureSpace { .. } =
-    let columns = concatMap (featureVectors' ds) $ knownFeats
-    in filter (not . (`elem` ignoredCols) . colName) columns
+    concatMap (featureVectors' ds) knownFeats
+
+featureVectors' :: Dataset -> Metadata -> [Vector Double]
+featureVectors' ds Categorical' {..} =
+    let colNames = ((featName' <>) "_" <>) <$> otherLabels
+    in fromMaybe [] $ sequence $ colByName' ds <$> colNames
+featureVectors' ds (featName' -> name) = maybe [] columns $ featByName ds name
 
 
-featureVectors' :: Dataset -> FeatureSpec -> [Column Double]
-featureVectors' ds FeatureSpec { .. } =
-    if null additionalColumns
-       then fromMaybe [] $ (:[]) <$> (colByName' ds column)
-       else let colNames = ((featName <>) "_" <>) <$> additionalColumns
-            in fromMaybe [] $ sequence $ colByName' ds <$> colNames
-
-createFeatureSpec :: Feature a -> FeatureSpec
-createFeatureSpec (MultiCol Categorical { .. }) = FeatureSpec
-    { featName          = className
-    , column            = baseFeature
-    , additionalColumns = (getColName . colName) <$> features }
-     where getColName :: Text -> Text
-           getColName cn = fromMaybe "" $ snd <$> splitFeatureName cn
-createFeatureSpec (SingleCol col) = FeatureSpec
-    { featName          = colName col
-    , column            = colName col
-    , additionalColumns = [] }
-
-createFeatureSpace :: [FeatureSpec] -> FeatureSpace
-createFeatureSpace fs =
-    let m = M.fromList $ zip (featName <$> fs) fs
+       -- then fromMaybe [] $ (:[]) <$> (colByName' ds column)
+createFeatureSpace :: [Metadata] -> FeatureSpace
+createFeatureSpace mds =
+    let m = M.fromList $ zip (featName' <$> mds) mds
     in  FeatureSpace (flip M.lookup m) (snd <$> M.toList m) []
 
 -- split a text value into a prefix before _, considered the feature name,
@@ -180,82 +164,61 @@ splitFeatureName (T.split (=='_') -> (f:kl)) =
        else Just (f, T.unwords kl)
 splitFeatureName _ = Nothing
 
-featureName :: Feature a -> Text
-featureName (SingleCol Column { .. })      = colName
-featureName (MultiCol  Categorical { .. }) = className
+featureName :: Feature' -> Text
+featureName = featName' . metadata
 
-featureSize :: V.Unbox a => Feature a -> Int
-featureSize (SingleCol col)                = colSize col
-featureSize (MultiCol  Categorical { .. }) = maybe 0 colSize $ listToMaybe features
+baselineColumn :: [Vector Double] -> Vector Double
+baselineColumn vss =
+    let n      = maybe 0 V.length $ listToMaybe vss
+        vsum i = sum $ (V.! i) <$> vss
+    in  V.generate n (\i -> 1.0 - vsum i) :: Vector Double
 
-featureVectors :: Feature a -> [Vector a]
-featureVectors (SingleCol Column { .. })     = [colData]
-featureVectors (MultiCol Categorical { .. }) = colData <$> features
-
-featureColumn :: Feature a -> Column a
-featureColumn (SingleCol c)     = c
-featureColumn (MultiCol Categorical { .. }) =
-    error $ "trying to extract a single feature from categorical column '"
-        <> className <> "'"
-
-baselineColumn :: Text -> Categorical Double -> Column Double
-baselineColumn fName Categorical { .. } =
-    mkColumn (fName <> "_" <> baseFeature) v
-     where n      = maybe 0 colSize $ listToMaybe features
-           vsum i = sum $ (V.! i) . colData <$> features
-           v      = V.generate n (\i -> 1.0 - vsum i) :: Vector Double
-
-featureColumns :: Feature a -> [Column a]
-featureColumns (SingleCol col)               = [col]
-featureColumns (MultiCol Categorical { .. }) = features
-
-colSize :: V.Unbox a => Column a -> Int
-colSize = V.length . colData
-
-createFeature :: FeatureType -> [Text] -> Feature Double
-createFeature (name -> name) [] = SingleCol $ mkColumn name V.empty
-createFeature (name -> name) xs@(x:_) =
+createFeature' :: FeatureType -> NonEmpty Text -> Feature'
+createFeature' (Auto name) xs@(x :| rest) =
     let parseFirst = readEither x :: Either Text Double
     in case parseFirst of
-        Right _ -> SingleCol $ createSingleCol name xs
-        Left _  -> MultiCol  $ createCategorical name xs
+        Right _ -> createContinuous undefined name xs
+        Left _  -> createCategorical'  name xs
+
+createContinuous :: ScaleStrategy -> Text -> NonEmpty Text -> Feature'
+createContinuous _sc name (x:|xs) =
+    let vs = replaceNAs $ parseNumbers (x:xs)
+    in Feature' (Continuous' name 0 1) [vs]
+
+createCategorical' :: Text -> NonEmpty Text -> Feature'
+createCategorical' name xs =
+    let klasses                = NE.sort $ NE.nub xs
+        (baseFeature, mOthers) = NE.uncons klasses
+        others                 = fromMaybe [] (NE.toList <$> mOthers)
+        features               = fmap createKlassVector others
+        createKlassVector kl   = V.fromList $
+            fmap (\d -> if d == kl then 1.0 else 0.0 :: Double) $ NE.toList xs
+        metadata = (Categorical' name baseFeature others)
+    in Feature' metadata $ createKlassVector <$> others
+
 
 replaceNAs :: Vector Double -> Vector Double
 replaceNAs xs =
     let mean      = C.vmean $ V.filter (not . isNaN) xs
     in V.map (\x -> if isNaN x then mean else x) xs
 
-createSingleCol :: Text -> [Text] -> Column Double
-createSingleCol colName colData =
+parseNumbers :: [Text] -> V.Vector Double
+parseNumbers xs =
     let fallback = sqrt $ -1
-    in mkColumn colName $ replaceNAs $ V.fromList $
-            either (const fallback) identity . readEither <$> colData
-
-createCategorical :: Text -> [Text] -> Categorical Double
-createCategorical className colData =
-    let klasses                    = -- debugShow ("klasses for " <> className) $
-            sort . ordNub $ colData
-        Just (baseFeature, others) = uncons klasses
-        features                   = fmap createKlassVector others
-        createKlassVector kl       = mkColumn (className <> "_" <> kl) $ V.fromList $
-            fmap (\d -> if d == kl then 1.0 else 0.0) colData
-    in  Categorical { .. }
-
-summarizeCategorical :: Categorical Double -> Text
-summarizeCategorical c@Categorical { .. } =
-    let size        = fromIntegral $ C.columnLength features
-        featNameLength = succ $ T.length className
-        baseFeat= baselineColumn className c
-        fc :: Column Double -> Text
-        fc Column { .. } = sformat (textF 5 % ": n=" % intF % " " % percF % "%")
-            (T.drop featNameLength colName)
-            (round $ V.sum colData)
-            (dSc $ 100.0*(V.sum colData)/size)
-        texts = fc <$> baseFeat:features
-    in sformat (textF 13) className <> (T.intercalate " | " $ texts)
+    in replaceNAs $ V.fromList $ fromRight fallback . readEither <$> xs
 
 rowSelectorFromList :: [Bool] -> RowSelector
 rowSelectorFromList xs =
     let v = V.fromList xs
     in (v V.!)
 
+-- names of the columns that we would produce when extracting the data from a
+-- dataset, using the given feature space as reference. This does not include
+-- the base labels of categorical variables, because they don't appear in the
+-- model input (one-hot encoding)
+columnNames :: FeatureSpace -> [Text]
+columnNames = concatMap featColNames . knownFeats
+
+featColNames :: Metadata -> [Text]
+featColNames Continuous' {..}  = [featName']
+featColNames Categorical' {..} = ((featName' <> "_") <>) <$> otherLabels

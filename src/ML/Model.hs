@@ -9,14 +9,15 @@ module ML.Model where
 
 import qualified Relude.Unsafe as RU
 import qualified ML.Dataset as DS
-import           ML.Dataset (Dataset(..), Feature, FeatureSpace(..)
-                            , Column(..), FeatureSpec)
+import qualified Data.Vector.Unboxed as VU
+import           ML.Dataset ( Dataset(..), FeatureSpace(..)
+                            , Metadata(..), Feature')
 import           Data.Text (Text)
 
 -- initial stub type for prediction result: the column vector of response
-type Prediction = Feature Double
+type Prediction = Feature'
 
-type FitF  a = [Column Double] -> Column Double -> a
+type FitF  a = [VU.Vector Double] -> VU.Vector Double -> a
 
 data ModelInit a = ModelInit
     { fitF      :: FitF a
@@ -28,11 +29,11 @@ class Predictor a => Model a where
 -- something that can make predictions. It also knows the feature space,
 -- because that helps writing generic functions that directly work on dataset
 class Predictor a where
-  predict :: a -> [Column Double] -> Prediction
+  predict :: a -> [VU.Vector Double] -> Prediction
 
 data ModelSpec = ModelSpec
     { features' :: FeatureSpace
-    , response  :: FeatureSpec } deriving (Show)
+    , response  :: Metadata } deriving (Show)
 
 fitDataset :: ModelInit a -> Dataset -> a
 fitDataset mi = fit' mi identity
@@ -49,8 +50,8 @@ predictDataset :: Model a => a -> Dataset -> Prediction
 predictDataset pr = predict' pr identity
 
 predict' :: Model a => a -> DS.ColumnTransformer -> Dataset -> Prediction
-predict' pr ct ds = predict pr featureCols
- where featureCols = ct <$> (DS.extractDataColumns ds $ features pr)
+predict' m ct ds = predict m featureCols
+ where featureCols = ct <$> (DS.extractDataColumns ds (features m))
 
 predictSubset :: Model a => a -> DS.RowSelector -> Dataset -> Prediction
 predictSubset pr rs = predict' pr $ DS.filterDataColumn rs
@@ -66,6 +67,10 @@ buildModelSpec FeatureSpace {..} responseName featureNames = do
         { features' = DS.createFeatureSpace fs
         , response  = response }
 
-extractResponseVector :: Dataset -> ModelSpec -> Column Double
+extractResponseVector :: Dataset -> ModelSpec -> VU.Vector Double
 extractResponseVector ds ms = RU.head $ DS.featureVectors' ds (response ms)
+
+responseName :: ModelSpec -> Text
+responseName = featName' . response
+
 

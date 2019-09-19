@@ -12,21 +12,18 @@ module ML.LinearRegressionGD where
 
 import           GHC.Show (Show(..))
 import qualified Relude.Unsafe as RU
-import qualified Data.Text as T
 import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
-import           ML.Dataset (Feature(..), Column(..), mkColumn)
-import qualified ML.Model as MM
+import           ML.Dataset (Feature'(..))
+import qualified ML.Model as M
 import           ML.Model (ModelSpec(..), Predictor(..))
 import qualified ML.LinearRegression as LR
-import qualified Numeric.LinearAlgebra as M
+import qualified Numeric.LinearAlgebra as LA
 import           Numeric.LinearAlgebra (Matrix, (#>), (<#), (<.>))
 import qualified Numeric.Morpheus.Statistics as MS
 
 data LinearRegressionGD = LinearRegressionGD
-    { lrFeatureNames   :: [T.Text]
-    , lrResponseName   :: T.Text
-    , lrCoefficients   :: Vector Double
+    { lrCoefficients   :: Vector Double
     , lrTss            :: Double
     , lrRss            :: Double
     , lrDF             :: Int
@@ -61,30 +58,26 @@ instance LR.LinearModel LinearRegressionGD where
   tss             = lrTss
   degreesOfFredom = fromIntegral . lrDF
 
-instance MM.Model LinearRegressionGD where
+instance M.Model LinearRegressionGD where
   features = features' . modelSpec . cfg
 
 instance Predictor LinearRegressionGD where
-  predict   LinearRegressionGD { .. } cols  =
-      SingleCol . mkColumn lrResponseName $ VS.convert $
-          LR.predictLinearRegression lrCoefficients $
-              VS.convert . colData <$> cols
+  predict LinearRegressionGD { .. } cols  =
+      let prediction = LR.predictLinearRegression lrCoefficients $ VS.convert <$> cols
+      in Feature' (response $ modelSpec cfg) [VS.convert prediction]
 
-linearRegressionGD :: ModelConfig -> MM.ModelInit LinearRegressionGD
-linearRegressionGD cfg = MM.ModelInit
-    { fitF      = flip (fitLinearRegression cfg)
+linearRegressionGD :: ModelConfig -> M.ModelInit LinearRegressionGD
+linearRegressionGD cfg = M.ModelInit
+    { fitF      = fitLinearRegression cfg
     , modelSpec = modelSpec cfg }
 
-fitLinearRegression :: ModelConfig
-                    -> Column Double
-                    -> [Column Double]
-                    -> LinearRegressionGD
-fitLinearRegression cfg response inputCols =
-    let y  = VS.convert . colData $ response
+fitLinearRegression :: ModelConfig -> M.FitF LinearRegressionGD
+fitLinearRegression cfg inputCols response =
+    let y  = VS.convert response
         n  = VS.length y
-        xs = VS.convert . colData <$> inputCols :: [Vector Double]
+        xs = VS.convert <$> inputCols :: [Vector Double]
         xX = LR.prepareMatrix n xs
-        p  = pred $ M.cols xX
+        p  = pred $ LA.cols xX
         yMean            = MS.mean y
         yDelta           = y - (VS.replicate n yMean)
         lrTss            = yDelta <.> yDelta
@@ -96,8 +89,6 @@ fitLinearRegression cfg response inputCols =
         lrCoefficients   = stepCoefficients finalState
         residuals        = y - LR.predictLinearRegression lrCoefficients xs
         lrRss            = residuals <.> residuals
-        lrResponseName   = colName response
-        lrFeatureNames   = colName <$> inputCols
     in LinearRegressionGD { .. }
 
 step :: LearningRate
@@ -111,7 +102,7 @@ step a xX y TrainingState { .. } =
         nRss = resi <.> resi
     in  --debugShow "iter" $
         TrainingState
-            { stepCoefficients = stepCoefficients - (M.scale a $ (yHat - y) <# xX)
+            { stepCoefficients = stepCoefficients - (LA.scale a $ (yHat - y) <# xX)
             , iter         = iter + 1
             , rss          = nRss
             , dRss         = rss - nRss}

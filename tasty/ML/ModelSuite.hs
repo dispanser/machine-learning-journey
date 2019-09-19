@@ -10,9 +10,9 @@ import           Test.Hspec
 
 spec_modelSpec :: Spec
 spec_modelSpec = do
-    let f1 = FeatureSpec "col1" "col1" []
-        f2 = FeatureSpec "col2" "col2" []
-        f3 = FeatureSpec "col3" "blue" ["red", "yellow"]
+    let f1 = Continuous' "col1" 0 1
+        f2 = Continuous' "col2" 0 1
+        f3 = Categorical' "col3" "blue" ["red", "yellow"]
         fs = createFeatureSpace [f1, f2, f3]
 
     describe "building model specification from feature names " $ do

@@ -8,7 +8,7 @@ import           Data.List (lookup)
 import qualified Data.Text as T
 import qualified Data.Vector.Unboxed as VU
 import           ML.Dataset (RawData(..))
-import           ML.Dataset (Column(..))
+import           ML.Data.Column.Internal (Column(..))
 import           Text.CSV (parseCSVFromFile, printCSV)
 
 -- create a dataset, the new way
@@ -24,10 +24,12 @@ readRawData' p f =
                 fullHeaders = toText <$> header
                 headers     = filter p $ fullHeaders
                 features    = filter (p . fst) $ zip fullHeaders bodyColumns
-                lookupCol n = maybeToRight
-                    ("unknown column '" <> show n <>
-                        "', available cols=" <> show headers) $
-                    lookup n features
+                lookupCol n = do
+                    res <- maybeToRight ("unknown feature '" <> show n <>
+                        "', available: " <> show headers) $ lookup n features
+                    case res of
+                      []      -> Left "empty data"
+                      (x:xs)  -> Right (x :| xs)
             in return RawData
                 { names      = headers
                 , dataColumn = lookupCol

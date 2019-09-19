@@ -16,7 +16,7 @@ dSc :: Double -> Scientific.Scientific
 dSc = Scientific.fromFloatDigits
 
 scieF, percF :: F.Format r' (Scientific.Scientific -> r')
-scieF = F.left 11 ' ' %. F.scifmt Scientific.Generic (Just 2)
+scieF = F.left 8 ' ' %. F.scifmt Scientific.Generic (Just 2)
 percF = F.left 5 ' ' %. F.scifmt Scientific.Generic (Just 2)
 
 textF :: Int -> F.Format r' (Text -> r')
