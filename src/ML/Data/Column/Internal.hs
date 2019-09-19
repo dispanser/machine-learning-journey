@@ -11,19 +11,17 @@ module ML.Data.Column.Internal
     , scaleColumn
     , scaleVector
     , scale01
-    , vmean
     , columnVariance
     , mkColumn
-    , summarizeVector
     ) where
 
 import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
 import qualified Data.Vector.Generic as VG
 import           Statistics.Function (minMax)
-import qualified Statistics.Quantile as Q
 import qualified Statistics.Sample as S
 import           ML.Data.Summary
+import           ML.Data.Vector (summarizeVector)
 
 type RowSelector       = Int           -> Bool
 type ColumnTransformer = Vector Double -> Vector Double
@@ -51,17 +49,6 @@ mkColumn n xs = Column n 1 0 xs
 summarizeColumn :: Column Double -> Text
 summarizeColumn Column { .. } = summarizeVector colName colData
 
-summarizeVector :: Text -> Vector Double -> Text
-summarizeVector name xs =
-    let [min', fstQ, med, thrdQ, max'] =
-            Q.quantiles Q.medianUnbiased [0..4] 4 xs
-        mean = vmean xs
-    in sformat (textF  13 % " Min: " % scieF % " 1stQ:" % scieF %
-        " Med: " % scieF % " 3rdQ:" % scieF % " Max:" % scieF %
-            " Mean:" % scieF)
-            name (dSc min') (dSc fstQ) (dSc med) (dSc thrdQ)
-            (dSc max') (dSc mean)
-
 scaleColumn :: ScaleStrategy -> Column Double -> Column Double
 scaleColumn sc col =
     let (range, shift) = sc $ colData col
@@ -85,9 +72,6 @@ scaleVector sc xs =
 
 filterDataColumn :: V.Unbox a => RowSelector -> Vector a -> Vector a
 filterDataColumn rs xs =V.ifilter (\i _ -> rs i) xs
-
-vmean :: VG.Vector v Double => v Double -> Double
-vmean vs = VG.sum vs / fromIntegral (VG.length vs)
 
 columnVariance :: Vector Double -> Double
 columnVariance = S.varianceUnbiased

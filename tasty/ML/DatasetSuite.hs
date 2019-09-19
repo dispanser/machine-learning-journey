@@ -14,12 +14,6 @@ fDouble       = createFeature' "col1" ["1.0", "2.0", "3.0"]
 fNAs          = createFeature' "col2" ["1.0", "NA", "3.0"]
 fCat          = createFeature' "col3" ["red", "yellow", "blue"]
 
-spec_replaceNAs :: Spec
-spec_replaceNAs =
-    it "N/A values should be replaced by the variable mean" $ do
-        let vs = V.fromList [-1, sqrt $ -1, 3]
-        replaceNAs vs `shouldBe` V.fromList [-1, 1, 3 :: Double]
-
 spec_DatasetFromFeatures :: Spec
 spec_DatasetFromFeatures = do
     describe "dataset created with createFromFeatures" $ do
