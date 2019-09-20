@@ -9,15 +9,13 @@ import           Base
 import qualified ML.Model as M
 import           ML.Dataset.CSV (readRawData)
 import           ML.Dataset (Dataset(..))
--- import           ML.Data.Column.Internal (scaleVector, scale01)
 import qualified ML.Dataset as DS
-import           Control.Monad (zipWithM_)
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 import qualified ML.LinearRegression as LR
 import qualified ML.LinearRegressionGD as LRGD
+import           ML.Data.Feature.Internal (scaled01)
 import qualified Data.Vector.Storable as V
-import           Data.Vector.Storable (Vector)
 import qualified Data.Vector.Unboxed as VU
 
 spec_babyRegression :: Spec
@@ -107,51 +105,53 @@ spec_TestingRescalingBehavior = do
                 lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
             checkVector (LR.coefficients lrModel) $ (/7) <$> [b0 - 3, b1, b2]
 
--- spec_ISLRLinearRegressionGD :: Spec
--- spec_ISLRLinearRegressionGD = parallel $
---     describe "LR Gradient descent: Adertising dataset, ISLR chapter 3:" $ do
---         advertisingDataset <- runIO readAdvertisingDataset
---         describe "simple linear regression for 'sales ~ TV'" $ do
---             let Right ms = M.buildModelSpec
---                     (featureSpace advertisingDataset) "sales" ["TV"]
---                 model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.0000003 (LRGD.maxIterations 600000) ms
---                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model advertisingDataset
---             runIO $ print lr
---             it "computes coefficients" $
---                 checkVector (LR.coefficients lr) [7.0325, 0.0475]
-
---             it "computes rse" $
---                 LR.rse lr `shouldRoughlyEqual` 3.258
-
---             it "computes R^2" $
---                 LR.r2 lr `shouldRoughlyEqual` 0.612
-        -- describe "applying feature scaling" $ do
-        --     let tvFeat    = scaleColumn scale01 <$> (colByName' advertisingDataset) "TV"
-        --         salesFeat = scaleColumn scale01 <$> (colByName' advertisingDataset) "sales"
-        --         scaledDS       = DS.createFromFeatures "scaled advertising"
-        --             [DS.SingleCol tvFeat, DS.SingleCol salesFeat]
+spec_ISLRLinearRegressionGD :: Spec
+spec_ISLRLinearRegressionGD = parallel $
+    describe "LR Gradient descent: Adertising dataset, ISLR chapter 3:" $ do
+        -- this takes 4s and is by far (100x) slower than all other tests combined
+        -- describe "simple linear regression for 'sales ~ TV'" $ do
+        --     advertisingDataset <- runIO readAdvertisingDataset
         --     let Right ms = M.buildModelSpec
-        --             (featureSpace scaledDS) "sales" ["TV"]
-        --         model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005 (LRGD.maxIterations 140) ms
-        --         lr@LRGD.LinearRegressionGD {..} = M.fitDataset model scaledDS
-        --     let [intercept, tvCoef] = V.toList $ LR.coefficients lr
-        --     runIO $ print $ V.toList $ LR.coefficients lr
-
-        --     -- recover original coefficents from unscaled solution
-        --     let coef'      = tvCoef * 25.4 / 295.7
-        --     let intercept' = intercept * 25.4 + 1.6 - 0.7 * coef'
-
-        --     it "scales back tv coefficient" $
-        --         coef' `shouldRoughlyEqual` 0.0475
-
-        --     it "scales back intercept" $
-        --         intercept' `shouldRoughlyEqual` 7.0325
+        --             (featureSpace advertisingDataset) "sales" ["TV"]
+        --         model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.0000003 (LRGD.maxIterations 600000) ms
+        --         lr@LRGD.LinearRegressionGD {..} = M.fitDataset model advertisingDataset
+        --     runIO $ print lr
+        --     it "computes coefficients" $
+        --         checkVector (LR.coefficients lr) [7.0325, 0.0475]
 
         --     it "computes rse" $
         --         LR.rse lr `shouldRoughlyEqual` 3.258
 
         --     it "computes R^2" $
         --         LR.r2 lr `shouldRoughlyEqual` 0.612
+        describe "applying feature scaling" $ do
+            dsScaledE <- runIO $ DS.parseDataset
+                [ scaled01 "TV", scaled01 "radio"
+                , scaled01 "newspaper", scaled01 "sales" ] <$>
+                    readRawData "data/Advertising.csv"
+            let Right dsScaled = dsScaledE
+            let Right ms = M.buildModelSpec
+                    (featureSpace dsScaled) "sales" ["TV"]
+                model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005 (LRGD.maxIterations 140) ms
+                lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
+            let [intercept, tvCoef] = V.toList $ LR.coefficients lr
+            runIO $ print $ V.toList $ LR.coefficients lr
+
+            -- recover original coefficents from unscaled solution
+            let coef'      = tvCoef * 25.4 / 295.7
+            let intercept' = intercept * 25.4 + 1.6 - 0.7 * coef'
+
+            it "scales back tv coefficient" $
+                coef' `shouldRoughlyEqual` 0.0475
+
+            it "scales back intercept" $
+                intercept' `shouldRoughlyEqual` 7.0325
+
+            it "computes rse" $
+                LR.rse lr `shouldRoughlyEqual` 3.258
+
+            it "computes R^2" $
+                LR.r2 lr `shouldRoughlyEqual` 0.612
 
 spec_ISLRLinearRegression :: Spec
 spec_ISLRLinearRegression = parallel $

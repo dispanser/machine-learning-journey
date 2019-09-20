@@ -30,9 +30,12 @@ replaceNAs xs =
 vmean :: (Fractional a, VG.Vector v a) => v a -> a
 vmean vs = VG.sum vs / fromIntegral (VG.length vs)
 
+-- human-readable representation of a vector. Note that we unapply the scaling
+-- process to present the data in its original input form.
 summarizeVector :: Text -> Scaling -> Vector Double -> Text
-summarizeVector name sc xs =
-    let [min', fstQ, med, thrdQ, max'] =
+summarizeVector name sc xsScaled =
+    let xs = unscaleWith sc xsScaled
+        [min', fstQ, med, thrdQ, max'] =
             Q.quantiles Q.medianUnbiased [0..4] 4 xs
         mean = vmean xs
     in sformat (textF  13 % " Min: " % scieF % " 1stQ:" % scieF %

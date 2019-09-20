@@ -4,7 +4,6 @@ module Base where
 
 import           ML.Dataset
 import           Data.Vector.Unboxed (Vector)
-import qualified Data.Vector.Unboxed as V
 import qualified Data.Vector.Generic as VG
 import           Test.Hspec
 
