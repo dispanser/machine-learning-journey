@@ -39,7 +39,7 @@ babyRegression cfgF = do
             predictor = M.fitDataset (cfgF ms) ds
         it "should correctly predict an unseen point" $ do -- black-box testing
             let (DS.Feature _ [res]) = M.predict predictor [xTest]
-            checkVector (V.convert res) [-1, 1 .. 9]
+            checkVector res [-1, 1 .. 9]
 
 spec_TestingRescalingBehavior :: Spec
 spec_TestingRescalingBehavior = do
@@ -219,18 +219,7 @@ spec_EmptyClassLinearRegression = do
                 lrFit    = M.fitSubset model (<= 2) ds
                 (DS.Feature _ [prediction]) = M.predictSubset lrFit (>=3) ds
             checkVector (LR.coefficients lrFit) [-0.3, 0.1] -- intercept and oth only
-            checkVector (V.convert prediction) [0.5, 0.4]
-
-shouldRoughlyEqual :: (Show a, Num a, Ord a, Fractional a) => a -> a -> IO ()
-shouldRoughlyEqual actual expected = actual `shouldSatisfy` roughlyEqual expected
-
-roughlyEqual :: (Num a, Ord a, Fractional a) => a -> a -> Bool
-roughlyEqual expected actual = 0.001 > abs (expected - actual)
-
-checkVector :: Vector Double -> [Double] -> IO ()
-checkVector xs y = do
-    V.length xs `shouldBe` length y
-    zipWithM_ (\x ex -> x `shouldRoughlyEqual` ex) (V.toList xs) y
+            checkVector prediction [0.5, 0.4]
 
 readAdvertisingDataset :: IO Dataset
 readAdvertisingDataset = do

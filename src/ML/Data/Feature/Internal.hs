@@ -15,7 +15,7 @@ module ML.Data.Feature.Internal
     , noScaling
     ) where
 
-import           GHC.Show (Show(..))
+import qualified GHC.Show as GS
 import           ML.Data.Vector ( noScaling, summarizeVector, replaceNAs
                                 , parseNumbers , scale01, scaleWith)
 import           ML.Data.Summary
@@ -64,7 +64,7 @@ instance IsString FeatureType where
   fromString = Auto . fromString
 
 instance Summary Feature where
-  summary (Feature (Continuous fn sc) [col]) = [summarizeVector fn col]
+  summary (Feature (Continuous fn sc) [col]) = [summarizeVector fn sc col]
   summary (Feature (Categorical fn bs ol) cols) =
       let size           = fromIntegral $ maybe 0 V.length $ listToMaybe cols
           baseFeat       = baselineColumn cols
@@ -75,10 +75,14 @@ instance Summary Feature where
             (dSc $ 100.0*(V.sum xs)/size)
           texts = uncurry fc <$> (bs,baseFeat):(zip ol cols)
     in [sformat (textF 13) fn <> (T.intercalate " | " $ texts)]
+  -- invalid case: cont feat w/ multiple columns
+  summary (Feature (Continuous fn _) xss) =
+      ["invalid coding for feature '" <> fn <>
+        "': should be a single column but got " <> show fn]
 
 instance Show FeatureSpace where
-  show fs = GHC.Show.show (knownFeats fs) <> " | ignored = "
-         <>  GHC.Show.show (ignoredCols fs)
+  show fs = GS.show (knownFeats fs) <> " | ignored = "
+         <>  GS.show (ignoredCols fs)
 
 createFeature :: FeatureType -> NonEmpty Text -> Feature
 createFeature (Auto name) xs@(x :| rest) =

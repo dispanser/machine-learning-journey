@@ -8,6 +8,7 @@ module ML.Data.Vector
     , scale01
     , scaleVector
     , scaleWith
+    , unscaleWith
     , vmean ) where
 
 import           ML.Data.Summary
@@ -29,8 +30,8 @@ replaceNAs xs =
 vmean :: (Fractional a, VG.Vector v a) => v a -> a
 vmean vs = VG.sum vs / fromIntegral (VG.length vs)
 
-summarizeVector :: Text -> Vector Double -> Text
-summarizeVector name xs =
+summarizeVector :: Text -> Scaling -> Vector Double -> Text
+summarizeVector name sc xs =
     let [min', fstQ, med, thrdQ, max'] =
             Q.quantiles Q.medianUnbiased [0..4] 4 xs
         mean = vmean xs
@@ -58,3 +59,6 @@ scaleVector sc xs = scaleWith (sc xs) xs
 
 scaleWith :: Scaling -> Vector Double -> Vector Double
 scaleWith (shift, scale) = V.map ((/scale) . subtract shift)
+
+unscaleWith :: Scaling -> Vector Double -> Vector Double
+unscaleWith (shift, scale) = V.map ((+ shift) . (*scale))

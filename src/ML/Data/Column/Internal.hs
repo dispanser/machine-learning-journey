@@ -16,19 +16,13 @@ import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
 import qualified Statistics.Sample as S
 import           ML.Data.Summary
-import           ML.Data.Vector (summarizeVector)
 
 type RowSelector       = Int           -> Bool
 type ColumnTransformer = Vector Double -> Vector Double
 
 data Column a = Column
     { colName :: Text
-    , scale   :: Double
-    , shift   :: Double
     , colData :: Vector a } deriving (Eq, Show)
-
-instance Summary (Column Double) where
-  summary = (:[]) . summarizeColumn
 
 -- type TransformRule  = VB.Vector Text           -> [Column Double]
 
@@ -37,10 +31,7 @@ instance Summary (Column Double) where
 -- type FeatureParser  = VB.Vector Text -> ([Column Double], TransformRule)
 
 mkColumn :: Text -> Vector a -> Column a
-mkColumn n xs = Column n 1 0 xs
-
-summarizeColumn :: Column Double -> Text
-summarizeColumn Column { .. } = summarizeVector colName colData
+mkColumn = Column
 
 filterDataColumn :: V.Unbox a => RowSelector -> Vector a -> Vector a
 filterDataColumn rs xs =V.ifilter (\i _ -> rs i) xs
