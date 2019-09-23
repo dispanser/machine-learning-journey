@@ -24,3 +24,6 @@ checkVector xs y = do
     VG.length xs `shouldBe` length y
     zipWithM_ (\x ex -> x `shouldRoughlyEqual` ex) (VG.toList xs) y
 
+-- TODO: improve for better error messages
+checkList :: [Double] -> [Double] -> IO ()
+checkList xs ys = (length xs `shouldBe` length ys) >> zipWithM_ shouldRoughlyEqual xs ys

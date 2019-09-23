@@ -16,7 +16,7 @@ import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
 import           ML.Dataset (Feature(..))
 import qualified ML.Model as M
-import           ML.Model (ModelSpec(..), Predictor(..))
+import           ML.Model (ModelSpec(..), Predictor(..), ModelInit(..))
 import qualified ML.LinearRegression as LR
 import qualified Numeric.LinearAlgebra as LA
 import           Numeric.LinearAlgebra (Matrix, (#>), (<#), (<.>))
@@ -30,7 +30,7 @@ data LinearRegressionGD = LinearRegressionGD
     , n                :: Int
     , p                :: Int
     , cfg              :: ModelConfig
-    } deriving Show
+    } -- deriving Show
 
 type LearningRate = Double
 
@@ -43,14 +43,14 @@ data TrainingState = TrainingState
     , iter         :: Int } deriving Show
 
 data ModelConfig = ModelConfig
-    { learnRate  :: LearningRate
-    , finishPred :: TrainingFinished
-    , modelSpec  :: ModelSpec
+    { learnRate   :: LearningRate
+    , finishPred  :: TrainingFinished
+    , lrModelSpec :: ModelSpec
     }
 
 instance Show ModelConfig where
   show ModelConfig { .. } = "ModelConfig{α=" <> GHC.Show.show learnRate <>
-      " spec=" <> GHC.Show.show modelSpec <>  "}"
+      " spec=" <> GHC.Show.show lrModelSpec <>  "}"
 
 instance LR.LinearModel LinearRegressionGD where
   coefficients    = lrCoefficients
@@ -59,17 +59,17 @@ instance LR.LinearModel LinearRegressionGD where
   degreesOfFredom = fromIntegral . lrDF
 
 instance M.Model LinearRegressionGD where
-  features = features' . modelSpec . cfg
+  modelSpec' = lrModelSpec . cfg
 
 instance Predictor LinearRegressionGD where
   predict LinearRegressionGD { .. } cols  =
       let prediction = LR.predictLinearRegression lrCoefficients $ VS.convert <$> cols
-      in Feature (response $ modelSpec cfg) [VS.convert prediction]
+      in Feature (response $ lrModelSpec cfg ) [VS.convert prediction]
 
 linearRegressionGD :: ModelConfig -> M.ModelInit LinearRegressionGD
 linearRegressionGD cfg = M.ModelInit
-    { fitF      = fitLinearRegression cfg
-    , modelSpec = modelSpec cfg }
+    { fitF        = fitLinearRegression cfg
+    , modelSpec = lrModelSpec cfg }
 
 fitLinearRegression :: ModelConfig -> M.FitF LinearRegressionGD
 fitLinearRegression cfg inputCols response =

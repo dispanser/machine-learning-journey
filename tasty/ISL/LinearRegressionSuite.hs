@@ -124,22 +124,24 @@ spec_ISLRLinearRegressionGD = parallel $
 
         --     it "computes R^2" $
         --         LR.r2 lr `shouldRoughlyEqual` 0.612
+        scaledAdv <- runIO $ DS.parseDataset
+            [ scaled01 "TV", scaled01 "radio"
+            , scaled01 "newspaper", scaled01 "sales" ] <$>
+                readRawData "data/Advertising.csv"
         describe "applying feature scaling" $ do
-            dsScaledE <- runIO $ DS.parseDataset
-                [ scaled01 "TV", scaled01 "radio"
-                , scaled01 "newspaper", scaled01 "sales" ] <$>
-                    readRawData "data/Advertising.csv"
-            let Right dsScaled = dsScaledE
+            let Right dsScaled = scaledAdv
             let Right ms = M.buildModelSpec
                     (featureSpace dsScaled) "sales" ["TV"]
                 model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005 (LRGD.maxIterations 140) ms
                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
             let [intercept, tvCoef] = V.toList $ LR.coefficients lr
-            runIO $ print $ V.toList $ LR.coefficients lr
 
-            -- recover original coefficents from unscaled solution
+            -- recover original coefficents from unscaled solution.
             let coef'      = tvCoef * 25.4 / 295.7
             let intercept' = intercept * 25.4 + 1.6 - 0.7 * coef'
+
+            it "recovers original coefficients" $ do
+                checkList (LR.recoverOriginalCoefficients lr) [7.0325, 0.0475]
 
             it "scales back tv coefficient" $
                 coef' `shouldRoughlyEqual` 0.0475
@@ -152,6 +154,24 @@ spec_ISLRLinearRegressionGD = parallel $
 
             it "computes R^2" $
                 LR.r2 lr `shouldRoughlyEqual` 0.612
+        describe "multivariate OLS for 'sales ~ TV + Radio + Newsaper'" $ do
+            let Right dsScaled = scaledAdv
+                Right ms = M.buildModelSpec
+                    (featureSpace dsScaled) "sales" [
+                        "TV", "radio", "newspaper"]
+                model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005 (LRGD.maxIterations 500) ms
+                lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
+            it "computes coeffiicents" $ do
+                checkList (LR.recoverOriginalCoefficients lr) [ 2.939, 0.046, -0.001, 0.189 ]
+
+            it "computes rse" $
+                LR.rse lr `shouldRoughlyEqual` 1.686
+
+            it "computes F-Statistics" $
+                LR.fStatistics lr `shouldRoughlyEqual` 570.271
+
+            it "computes R^2" $
+                LR.r2 lr `shouldRoughlyEqual` 0.897
 
 spec_ISLRLinearRegression :: Spec
 spec_ISLRLinearRegression = parallel $

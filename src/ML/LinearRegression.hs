@@ -8,8 +8,9 @@ module ML.LinearRegression where
 
 import qualified ML.Model as M
 import           ML.Dataset (Feature(..), Metadata(..), knownFeats)
+import qualified ML.Data.Feature.Internal as F
 import qualified ML.Dataset as DS
-import           ML.Model (ModelSpec(..))
+import           ML.Model (ModelSpec(..), ModelInit(..))
 import           ML.Data.Summary
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
@@ -24,7 +25,6 @@ import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
 import           Statistics.Distribution.StudentT (studentT)
 import           Statistics.Distribution (complCumulative)
-import qualified Debug.Trace as D
 
 data LinearRegression = LinearRegression
     { lrCoefficients   :: Vector Double
@@ -52,7 +52,7 @@ instance LinearModel LinearRegression where
   degreesOfFredom = fromIntegral . lrDF
 
 instance M.Model LinearRegression where
-  features = features' . lrModelSpec
+  modelSpec' = lrModelSpec
 
 instance M.Predictor LinearRegression where
   predict   LinearRegression { .. } cols  =
@@ -191,3 +191,38 @@ pValue df v =
 -- for the intercept
 prepareMatrix :: Int -> [Vector Double] -> Matrix R
 prepareMatrix n xs = M.fromColumns $ VS.replicate n 1 : xs
+
+-- metadata, replicated to have one metadata entry per column
+--
+metadataStream :: DS.FeatureSpace -> [Metadata]
+metadataStream (knownFeats -> mds) =
+    concatMap (\md -> replicate (columnsForFeature md) md) mds
+
+-- given some metadata, how many columns of actual data is it representing?
+columnsForFeature :: Metadata -> Int
+columnsForFeature (Continuous _ _)     = 1
+columnsForFeature (Categorical _ _ ol) = length ol
+
+scalingFactor :: Metadata -> F.Scaling
+scalingFactor (Continuous _ sc)   = sc
+scalingFactor (Categorical _ _ _) = (0, 1)
+
+recoverOriginalCoefficients :: LinearModel a => a -> [Double]
+recoverOriginalCoefficients m =
+    let ms = M.modelSpec' m
+        fs = features' ms
+        rs = response ms
+        Just (intercept, regularCoefficients) = uncons $ VS.toList $ coefficients m
+        (rShift, rScale)   = scaling rs
+        scalingFactors     = scalingFactor <$> metadataStream fs
+        scaledCoefficients = zipWith (\c (_, sc) -> c * rScale / sc)
+            regularCoefficients scalingFactors
+        intercept'  = intercept * rScale + rShift
+        interceptShifts = zipWith (\c (sh, _) -> c * sh) scaledCoefficients scalingFactors
+        intercept'' = intercept' - sum interceptShifts
+    -- TODO:
+    -- - only work on the continuous bits
+    -- - keep the others untouched
+    -- - current metadataStream approach is not usable
+    -- - break smaller: scale single coefficient
+    in intercept'' : scaledCoefficients

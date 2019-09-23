@@ -5,6 +5,8 @@ module ML.Data.Feature.Internal
     , Feature     (..)
     , FeatureSpace (..)
     , Metadata     (..)
+    , Scaling
+    , ScaleStrategy
     , baselineColumn
     , createFeature
     , featureName

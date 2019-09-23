@@ -24,7 +24,7 @@ data ModelInit a = ModelInit
     , modelSpec :: ModelSpec }
 
 class Predictor a => Model a where
-  features :: a -> FeatureSpace
+  modelSpec' :: a -> ModelSpec
 
 -- something that can make predictions. It also knows the feature space,
 -- because that helps writing generic functions that directly work on dataset
@@ -51,7 +51,8 @@ predictDataset pr = predict' pr identity
 
 predict' :: Model a => a -> DS.ColumnTransformer -> Dataset -> Prediction
 predict' m ct ds = predict m featureCols
- where featureCols = ct <$> (DS.extractDataColumns ds (features m))
+ where featureCols = ct <$> (DS.extractDataColumns ds
+            (features' $ modelSpec' m))
 
 predictSubset :: Model a => a -> DS.RowSelector -> Dataset -> Prediction
 predictSubset pr rs = predict' pr $ DS.filterDataColumn rs
