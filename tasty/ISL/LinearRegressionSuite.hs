@@ -23,8 +23,7 @@ spec_babyRegression = do
     describe "linear-solver based  linear regression" $ do
         babyRegression (LR.fitLinearRegression)
     describe "gradient-descent based linear regression" $ do
-        babyRegression (LRGD.linearRegressionGD . LRGD.ModelConfig
-            0.005 LRGD.noPenalty (LRGD.maxIterations 10000))
+        babyRegression $ LRGD.linearRegressionGD 0.018 2500
 
 babyRegression :: M.Predictor a => (M.ModelSpec -> M.ModelInit a) -> Spec
 babyRegression cfgF = do
@@ -133,8 +132,7 @@ spec_ISLRLinearRegressionGD = parallel $
             let Right dsScaled = scaledAdv
             let Right ms = M.buildModelSpec
                     (featureSpace dsScaled) "sales" ["TV"]
-                model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005
-                    LRGD.noPenalty (LRGD.maxIterations 140) ms
+                model = LRGD.linearRegressionGD 0.005 140 ms
                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
             let [intercept, tvCoef] = V.toList $ LR.coefficients lr
 
@@ -161,8 +159,7 @@ spec_ISLRLinearRegressionGD = parallel $
                 Right ms = M.buildModelSpec
                     (featureSpace dsScaled) "sales" [
                         "TV", "radio", "newspaper"]
-                model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.005
-                    LRGD.noPenalty (LRGD.maxIterations 500) ms
+                model = LRGD.linearRegressionGD 0.005 500 ms
                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
             it "computes coeffiicents" $ do
                 checkList (LR.recoverOriginalCoefficients lr) [ 2.939, 0.046, -0.001, 0.189 ]

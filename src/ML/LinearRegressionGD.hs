@@ -78,10 +78,12 @@ instance Predictor LinearRegressionGD where
       let prediction = LR.predictLinearRegression lrCoefficients $ VS.convert <$> cols
       in Feature (response $ lrModelSpec cfg ) [VS.convert prediction]
 
-linearRegressionGD :: ModelConfig -> M.ModelInit LinearRegressionGD
-linearRegressionGD cfg = M.ModelInit
-    { fitF        = fitLinearRegression cfg
-    , modelSpec = lrModelSpec cfg }
+linearRegressionGD :: LearningRate -> Int -> ModelSpec -> M.ModelInit LinearRegressionGD
+linearRegressionGD a n ms =
+    let cfg = ModelConfig a noPenalty (maxIterations n) ms
+    in M.ModelInit
+        { fitF        = fitLinearRegression cfg
+        , modelSpec = lrModelSpec cfg }
 
 fitLinearRegression :: ModelConfig -> M.FitF LinearRegressionGD
 fitLinearRegression cfg inputCols response =
