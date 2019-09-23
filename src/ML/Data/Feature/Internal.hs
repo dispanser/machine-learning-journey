@@ -71,8 +71,8 @@ instance Summary Feature where
       let size           = fromIntegral $ maybe 0 V.length $ listToMaybe cols
           baseFeat       = baselineColumn cols
           fc :: Text -> Vector Double -> Text
-          fc name xs = sformat (textF 5 % ": n=" % intF % " " % percF % "%")
-            name
+          fc name' xs = sformat (textF 5 % ": n=" % intF % " " % percF % "%")
+            name'
             (round $ V.sum xs)
             (dSc $ 100.0*(V.sum xs)/size)
           texts = uncurry fc <$> (bs,baseFeat):(zip ol cols)
@@ -80,19 +80,20 @@ instance Summary Feature where
   -- invalid case: cont feat w/ multiple columns
   summary (Feature (Continuous fn _) xss) =
       ["invalid coding for feature '" <> fn <>
-        "': should be a single column but got " <> show fn]
+        "': should be a single column but got " <> show (length xss) <> " columns"]
 
 instance Show FeatureSpace where
   show fs = GS.show (knownFeats fs) <> " | ignored = "
          <>  GS.show (ignoredCols fs)
 
 createFeature :: FeatureType -> NonEmpty Text -> Feature
-createFeature (Auto name) xs@(x :| rest) =
+createFeature (Auto name') xs@(x :| _) =
     let parseFirst = readEither x :: Either Text Double
     in case parseFirst of
-        Right _ -> createContinuous noScaling name xs
-        Left _  -> createCategorical  name xs
+        Right _ -> createContinuous noScaling name' xs
+        Left _  -> createCategorical  name' xs
 createFeature (Cont n s) xs = createContinuous s n xs
+createFeature (Cat  n)  xs  = createFeature (Auto n) xs
 
 featureName :: Feature -> Text
 featureName = featName' . metadata
@@ -104,22 +105,21 @@ baselineColumn vss =
     in  V.generate n (\i -> 1.0 - vsum i) :: Vector Double
 
 createContinuous :: ScaleStrategy -> Text -> NonEmpty Text -> Feature
-createContinuous ss name xx@(x:|xs) =
-    let vsRaw   = replaceNAs $ parseNumbers (x:xs)
-        scaling = ss vsRaw
-        vs      = scaleWith scaling vsRaw
-    in Feature (Continuous name scaling) [vs]
+createContinuous ss name' (x:|xs) =
+    let vsRaw = replaceNAs $ parseNumbers (x:xs)
+        sc    = ss vsRaw
+        vs    = scaleWith sc vsRaw
+    in Feature (Continuous name' sc) [vs]
 
 createCategorical :: Text -> NonEmpty Text -> Feature
-createCategorical name xs =
+createCategorical name' xs =
     let klasses                = NE.sort $ NE.nub xs
         (baseFeature, mOthers) = NE.uncons klasses
         others                 = fromMaybe [] (NE.toList <$> mOthers)
-        features               = fmap createKlassVector others
         createKlassVector kl   = V.fromList $
             fmap (\d -> if d == kl then 1.0 else 0.0 :: Double) $ NE.toList xs
-        metadata = (Categorical name baseFeature others)
-    in Feature metadata $ createKlassVector <$> others
+        md = (Categorical name' baseFeature others)
+    in Feature md $ createKlassVector <$> others
 
 auto :: FeatureConstructor
 auto = Auto

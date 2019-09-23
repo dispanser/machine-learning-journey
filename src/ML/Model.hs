@@ -58,9 +58,9 @@ predictSubset :: Model a => a -> DS.RowSelector -> Dataset -> Prediction
 predictSubset pr rs = predict' pr $ DS.filterDataColumn rs
 
 buildModelSpec :: FeatureSpace -> Text -> [Text] -> Either Text ModelSpec
-buildModelSpec FeatureSpace {..} responseName featureNames = do
-    response <- maybe (Left $ "response named '" <> responseName <> "' not found")
-        Right $ findFeature responseName
+buildModelSpec FeatureSpace {..} respName featureNames = do
+    response <- maybe (Left $ "response named '" <> respName <> "' not found")
+        Right $ findFeature respName
     fs <- forM featureNames (\fn ->
         maybe (Left $ "feature named '" <> fn <> "' not found")
                    Right $ findFeature fn)
