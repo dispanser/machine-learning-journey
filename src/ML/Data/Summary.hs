@@ -2,6 +2,9 @@ module ML.Data.Summary
     ( module ML.Data.Summary
     , (%), (%.)
     , F.sformat -- re-exporting formatting vocabular
+    , F.fixed
+    , F.stext
+    , F.left
     ) where
 
 import qualified Formatting as F
@@ -21,6 +24,9 @@ percF = F.left 5 ' ' %. F.scifmt Scientific.Generic (Just 2)
 
 textF :: Int -> F.Format r' (Text -> r')
 textF i = (F.l i ' ' %. F.st)
+
+floatF :: Real a => Int -> Int -> F.Format r' (a -> r')
+floatF n d = (F.l n ' ' %. F.f d)
 
 numF :: F.Format r' (Integer -> r')
 numF  = F.l 13 ' ' %. (F.fitRight 13 %. F.sf)

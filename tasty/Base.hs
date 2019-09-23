@@ -17,7 +17,9 @@ shouldRoughlyEqual :: (Show a, Num a, Ord a, Fractional a) => a -> a -> IO ()
 shouldRoughlyEqual actual expected = actual `shouldSatisfy` roughlyEqual expected
 
 roughlyEqual :: (Num a, Ord a, Fractional a) => a -> a -> Bool
-roughlyEqual expected actual = 0.001 > abs (expected - actual)
+roughlyEqual expected actual =
+    (0.01 > abs (expected - actual)) ||
+        (1.01 > max expected actual / min expected actual)
 
 checkVector :: VG.Vector v Double => v Double -> [Double] -> IO ()
 checkVector xs y = do

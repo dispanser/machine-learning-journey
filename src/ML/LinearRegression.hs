@@ -15,8 +15,6 @@ import           ML.Data.Summary
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
 import qualified Numeric.Morpheus.Statistics as MS
-import qualified Formatting as F
-import           Formatting ((%), (%.))
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Scientific as Scientific
@@ -62,7 +60,7 @@ instance M.Predictor LinearRegression where
 instance Summary LinearRegression where
   summary = summarizeLinearRegression
 
-summarizeLinearRegression :: LinearRegression -> [T.Text]
+summarizeLinearRegression :: LinearRegression -> [Text]
 summarizeLinearRegression lr@LinearRegression { .. }  =
     let featureNames = DS.columnNames $ features' lrModelSpec
     in [ formatFormula
@@ -75,26 +73,26 @@ summarizeLinearRegression lr@LinearRegression { .. }  =
             (V.fromList $ "Intercept" : featureNames)
             (V.convert lrCoefficients) (V.convert lrStandardErrors)) ++
                 [ ""
-                , F.sformat ("R^2         : " % F.fixed 4) (r2 lr)
-                , F.sformat ("F-Statistics: " % F.fixed 4) $ fStatistics lr]
+                , sformat ("R^2         : " % fixed 4) (r2 lr)
+                , sformat ("F-Statistics: " % fixed 4) $ fStatistics lr]
 
 -- format the features and response used for the regression, R-style
-formatFormula :: T.Text -> [T.Text] -> T.Text
+formatFormula :: Text -> [Text] -> Text
 formatFormula responseName featureNames =
-    F.sformat ("Linear Regression: " % F.stext % " ~ ") responseName
+    sformat ("Linear Regression: " % stext % " ~ ") responseName
       <> T.intercalate " + " featureNames
 
 -- format a coefficient into a nicely laid out string
-formatCoefficientInfo :: Double -> T.Text -> Double -> Double -> T.Text
+formatCoefficientInfo :: Double -> Text -> Double -> Double -> Text
 formatCoefficientInfo df name x err =
-    let numF'          = F.left 8 ' '  %. F.fixed 4
-        formatString = (F.left 17 ' ' %. F.stext) % " | " % scieF % " | " % scieF %
+    let numF'          = left 8 ' '  %. fixed 4
+        formatString = (left 17 ' ' %. stext) % " | " % scieF % " | " % scieF %
             " | " % numF' % " | " % numF'
         tStat        = x / err
         -- TODO: multiplying by two gives the same values as R, but that's not
         -- a good reason to randomly multiply by something. Investigate!
         pV           = 2 * (pValue df $ abs tStat)
-    in F.sformat formatString name
+    in sformat formatString name
         (Scientific.fromFloatDigits x)
         (Scientific.fromFloatDigits err) tStat pV
 
@@ -220,9 +218,4 @@ recoverOriginalCoefficients m =
         intercept'  = intercept * rScale + rShift
         interceptShifts = zipWith (\c (sh, _) -> c * sh) scaledCoefficients scalingFactors
         intercept'' = intercept' - sum interceptShifts
-    -- TODO:
-    -- - only work on the continuous bits
-    -- - keep the others untouched
-    -- - current metadataStream approach is not usable
-    -- - break smaller: scale single coefficient
     in intercept'' : scaledCoefficients

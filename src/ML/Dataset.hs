@@ -63,8 +63,11 @@ parseDataset fs RawData {..} =
     in createFromFeatures "unknown dataset" <$> features
 
 parseFullDataset :: RawData -> Either ParseError Dataset
-parseFullDataset rd =
-    let features = Auto <$> names rd
+parseFullDataset = parseScaledDataset F.noScaling
+
+parseScaledDataset :: F.ScaleStrategy -> RawData -> Either ParseError Dataset
+parseScaledDataset ss rd =
+    let features = Auto ss <$> names rd
     in parseDataset features rd
 
 createFromFeatures :: T.Text -> [Feature] -> Dataset

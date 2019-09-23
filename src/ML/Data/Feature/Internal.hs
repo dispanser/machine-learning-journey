@@ -31,7 +31,8 @@ type ScaleStrategy     = Vector Double -> Scaling
 type FeatureConstructor = Text -> FeatureType
 
 data FeatureType =
-    Auto     { name :: Text }
+    Auto     { scaleStrategy :: ScaleStrategy
+             , name :: Text }
       | Cat  { name :: Text }
       | Cont { name :: Text
              , scaleStrategy :: ScaleStrategy }
@@ -63,7 +64,7 @@ data FeatureSpace = FeatureSpace
 
 -- instantiate a string into a feature type using auto-detection mechanism
 instance IsString FeatureType where
-  fromString = Auto . fromString
+  fromString = Auto noScaling . fromString
 
 instance Summary Feature where
   summary (Feature (Continuous fn sc) [col]) = [summarizeVector fn sc col]
@@ -87,13 +88,13 @@ instance Show FeatureSpace where
          <>  GS.show (ignoredCols fs)
 
 createFeature :: FeatureType -> NonEmpty Text -> Feature
-createFeature (Auto name') xs@(x :| _) =
+createFeature (Auto ss name') xs@(x :| _) =
     let parseFirst = readEither x :: Either Text Double
     in case parseFirst of
-        Right _ -> createContinuous noScaling name' xs
+        Right _ -> createContinuous ss name' xs
         Left _  -> createCategorical  name' xs
 createFeature (Cont n s) xs = createContinuous s n xs
-createFeature (Cat  n)  xs  = createFeature (Auto n) xs
+createFeature (Cat  n)  xs  = createFeature (Auto noScaling n) xs
 
 featureName :: Feature -> Text
 featureName = featName' . metadata
@@ -122,7 +123,7 @@ createCategorical name' xs =
     in Feature md $ createKlassVector <$> others
 
 auto :: FeatureConstructor
-auto = Auto
+auto = Auto noScaling
 
 scaled01 :: FeatureConstructor
 scaled01 = scaled scale01

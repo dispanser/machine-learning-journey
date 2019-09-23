@@ -7,6 +7,7 @@ module ISL.LinearRegressionSuite where
 
 import           Base
 import qualified ML.Model as M
+import           ML.Data.Summary
 import           ML.Dataset.CSV (readRawData)
 import           ML.Dataset (Dataset(..))
 import qualified ML.Dataset as DS
@@ -14,9 +15,9 @@ import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 import qualified ML.LinearRegression as LR
 import qualified ML.LinearRegressionGD as LRGD
-import           ML.Data.Feature.Internal (scaled01)
+import           ML.Data.Feature.Internal (ScaleStrategy)
+import           ML.Data.Vector (scale01, normalize, noScaling)
 import qualified Data.Vector.Storable as V
-import qualified Data.Vector.Unboxed as VU
 
 spec_babyRegression :: Spec
 spec_babyRegression = do
@@ -39,83 +40,17 @@ babyRegression cfgF = do
             let (DS.Feature _ [res]) = M.predict predictor [xTest]
             checkVector res [-1, 1 .. 9]
 
-spec_TestingRescalingBehavior :: Spec
-spec_TestingRescalingBehavior = do
-    describe "baseline" $ do
-        let x1Data = VU.fromList [5.0, 4.0, 4.5, 7, 13]
-            x2Data = VU.fromList [8, 18, 9, 4, 3]
-            yData  = VU.fromList [4, 6, 4, 3, 2]
-            b0 = 2.962
-            b1 = -0.1164
-            b2 = 0.192606
-        it "should compute some coefficients" $ do
-            let x1        = contFeat "x1" x1Data
-                x2        = contFeat "x2" x2Data
-                y         = contFeat "y"  yData
-                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
-                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
-            checkVector (LR.coefficients lrModel) [b0, b1, b2]
-        it "should halve b2 when scaling column 2 up by 2" $ do
-            let x1        = contFeat "x1" x1Data
-                x2        = contFeat "x2" $ VU.map (*2) x2Data
-                y         = contFeat "y"  yData
-                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
-                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
-            checkVector (LR.coefficients lrModel) [b0, b1, b2 / 2]
-        it "should substract b2 from b0 when shifting column 2 up by 1" $ do
-            let x1        = contFeat "x1" x1Data
-                x2        = contFeat "x2" $ VU.map (+1) x2Data
-                y         = contFeat "y"  yData
-                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
-                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
-            checkVector (LR.coefficients lrModel) [b0 - b2, b1, b2]
-        it "should adapt b0 and b2 without touching b1 on linear transformation of x2" $ do
-            let x1        = contFeat "x1" x1Data
-                x2        = contFeat "x2" $ VU.map ((/3) . (subtract 5)) x2Data
-                y         = contFeat "y"  yData
-                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
-                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
-            checkVector (LR.coefficients lrModel) [b0+5*b2, b1, 3*b2]
-        it "should adapt all of beta when multiplying y with a scalar" $ do
-            let x1        = contFeat "x1" x1Data
-                x2        = contFeat "x2" x2Data
-                y         = contFeat "y"  $ VU.map (/3) yData
-                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
-                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
-            checkVector (LR.coefficients lrModel) $ (/3) <$> [b0, b1, b2]
-        it "should adapt intercept when shifting y" $ do
-            let x1        = contFeat "x1" x1Data
-                x2        = contFeat "x2" x2Data
-                y         = contFeat "y"  $ VU.map (+3) yData
-                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
-                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
-            checkVector (LR.coefficients lrModel) [b0 + 3, b1, b2]
-        it "should do something to all of you  y" $ do
-            let x1        = contFeat "x1" x1Data
-                x2        = contFeat "x2" x2Data
-                y         = contFeat "y"  $ VU.map ((/7) . subtract 3) yData
-                ds        = DS.createFromFeatures "hspec" [x1, x2, y]
-                Right ms  = M.buildModelSpec (DS.featureSpace ds) "y" ["x1", "x2"]
-                lrModel   = M.fitDataset (LR.fitLinearRegression ms) ds
-            checkVector (LR.coefficients lrModel) $ (/7) <$> [b0 - 3, b1, b2]
-
 spec_ISLRLinearRegressionGD :: Spec
 spec_ISLRLinearRegressionGD = parallel $
     describe "LR Gradient descent: Adertising dataset, ISLR chapter 3:" $ do
         -- this takes 4s and is by far (100x) slower than all other tests combined
         -- describe "simple linear regression for 'sales ~ TV'" $ do
-        --     advertisingDataset <- runIO readAdvertisingDataset
+        --     advertisingDataset <- runIO readAdvertisingDataset noScaling
         --     let Right ms = M.buildModelSpec
         --             (featureSpace advertisingDataset) "sales" ["TV"]
-        --         model = LRGD.linearRegressionGD $ LRGD.ModelConfig 0.0000003 (LRGD.maxIterations 600000) ms
+        --         model = LRGD.linearRegressionGD 0.0000003 600000 ms
         --         lr@LRGD.LinearRegressionGD {..} = M.fitDataset model advertisingDataset
-        --     runIO $ print lr
+        --     -- runIO $ print lr
         --     it "computes coefficients" $
         --         checkVector (LR.coefficients lr) [7.0325, 0.0475]
 
@@ -124,9 +59,7 @@ spec_ISLRLinearRegressionGD = parallel $
 
         --     it "computes R^2" $
         --         LR.r2 lr `shouldRoughlyEqual` 0.612
-        scaledAdv <- runIO $ DS.parseDataset
-            [ scaled01 "TV", scaled01 "radio"
-            , scaled01 "newspaper", scaled01 "sales" ] <$>
+        scaledAdv <- runIO $ DS.parseScaledDataset scale01 <$>
                 readRawData "data/Advertising.csv"
         describe "applying feature scaling" $ do
             let Right dsScaled = scaledAdv
@@ -161,7 +94,7 @@ spec_ISLRLinearRegressionGD = parallel $
                         "TV", "radio", "newspaper"]
                 model = LRGD.linearRegressionGD 0.005 500 ms
                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
-            it "computes coeffiicents" $ do
+            it "computes coefficents" $ do
                 checkList (LR.recoverOriginalCoefficients lr) [ 2.939, 0.046, -0.001, 0.189 ]
 
             it "computes rse" $
@@ -176,7 +109,7 @@ spec_ISLRLinearRegressionGD = parallel $
 spec_ISLRLinearRegression :: Spec
 spec_ISLRLinearRegression = parallel $
     describe "Adertising dataset, ISLR chapter 3:" $ do
-        advertisingDataset <- runIO readAdvertisingDataset
+        advertisingDataset <- runIO $ readAdvertisingDataset noScaling
         describe "simple linear regression for 'sales ~ TV'" $ do
             let Right ms = M.buildModelSpec
                     (featureSpace advertisingDataset) "sales" ["TV"]
@@ -208,7 +141,7 @@ spec_ISLRLinearRegression = parallel $
                         "TV", "radio", "newspaper"]
                 model = LR.fitLinearRegression ms
                 lr@LR.LinearRegression {..} = M.fitDataset model advertisingDataset
-            it "computes coeffiicents" $ do
+            it "computes coefficents" $ do
                 checkVector (LR.coefficients lr) [ 2.939, 0.046, -0.001, 0.189 ]
 
             it "computes rse" $
@@ -222,6 +155,49 @@ spec_ISLRLinearRegression = parallel $
 
             it "computes R^2" $
                 LR.r2 lr `shouldRoughlyEqual` 0.897
+
+spec_Regularization :: Spec
+spec_Regularization = do
+    ds <- runIO $ readHittersDataset normalize
+    let Right ms = M.buildModelSpec (featureSpace ds) "Salary"
+            [ "AtBat", "Hits", "HmRun", "Runs", "RBI", "Walks", "Years", "CAtBat"
+            , "CHits", "CHmRun", "CRuns", "CRBI", "CWalks", "League", "Division"
+            , "PutOuts", "Assists", "Errors", "NewLeague" ]
+    describe "ridge regression" $ do
+        -- it "produce the coefficents stated in the book for l=11498" $ do
+        --     let model = LRGD.ridgeRegression 11498 0.00005 1000 ms
+        --         lr    = M.fitDataset model ds
+        --         coefs = LR.recoverOriginalCoefficients lr
+        --     mapM_ print $ summary lr
+        --     coefs `shouldBe` []
+        it "produce the coefficents stated in the book for l=705" $ do
+            let model = LRGD.ridgeRegression 705 0.0006 5000 ms
+                lr    = M.fitDataset model ds
+                coefs = LR.recoverOriginalCoefficients lr
+            mapM_ print $ summary lr
+            coefs `shouldBe` []
+        -- it "produce the coefficents stated in the book for l=1" $ do
+        --     let model = LRGD.ridgeRegression 0 0.0005 200 ms
+        --         lr    = M.fitDataset model ds
+        --         coefs = LR.recoverOriginalCoefficients lr
+        --     print $ "number of coefficients: " <> show (length coefs)
+        --     mapM_ print $ summary lr
+        --     coefs `shouldBe` []
+    describe "gradient descent regression" $ do
+        let originalCoefficients = [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
+                               , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
+                               , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
+
+        it "produce the coefficents on non-constrained lr" $ do
+            let model = LRGD.linearRegressionGD 0.001 9000 ms
+                lr    = M.fitDataset model ds
+                coefs = LR.recoverOriginalCoefficients lr
+            checkList coefs originalCoefficients
+        it "produce the coefficents stated in the book for OLS" $ do
+            let model = LR.fitLinearRegression ms
+                lr    = M.fitDataset model ds
+                coefs = LR.recoverOriginalCoefficients lr
+            checkList coefs originalCoefficients
 
 spec_EmptyClassLinearRegression :: Spec
 spec_EmptyClassLinearRegression = do
@@ -241,8 +217,12 @@ spec_EmptyClassLinearRegression = do
             checkVector (LR.coefficients lrFit) [-0.3, 0.1] -- intercept and oth only
             checkVector prediction [0.5, 0.4]
 
-readAdvertisingDataset :: IO Dataset
-readAdvertisingDataset = do
-    Right ds <- DS.parseFullDataset <$> readRawData "data/Advertising.csv"
+readAdvertisingDataset :: ScaleStrategy -> IO Dataset
+readAdvertisingDataset ss = do
+    Right ds <- DS.parseScaledDataset ss <$> readRawData "data/Advertising.csv"
     return ds
 
+readHittersDataset :: ScaleStrategy ->  IO Dataset
+readHittersDataset ss = do
+    Right ds <- DS.parseScaledDataset ss <$> readRawData "data/hitters/HittersNoSalaryNA.csv"
+    return ds

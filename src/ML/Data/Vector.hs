@@ -4,6 +4,7 @@ module ML.Data.Vector
     ( replaceNAs
     , summarizeVector
     , parseNumbers
+    , normalize
     , noScaling
     , scale01
     , scaleVector
@@ -17,6 +18,7 @@ import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
 import           Statistics.Function (minMax)
 import qualified Statistics.Quantile as Q
+import qualified Statistics.Sample as S
 
 type Scaling           = (Double, Double)
 type ScaleStrategy     = Vector Double -> Scaling
@@ -53,6 +55,11 @@ scale01 :: ScaleStrategy
 scale01 xs =
     let (minV, maxV) = minMax xs
     in  (minV, maxV - minV)
+
+normalize :: ScaleStrategy
+normalize xs =
+    let (mn, var) = S.meanVariance xs
+    in (mn, sqrt var)
 
 noScaling :: ScaleStrategy
 noScaling = const (0, 1)

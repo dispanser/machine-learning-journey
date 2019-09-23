@@ -12,9 +12,12 @@ module ML.LinearRegressionGD where
 
 import           GHC.Show (Show(..))
 import qualified Relude.Unsafe as RU
+import qualified Data.List as DL
 import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
+import           ML.Data.Summary
 import           ML.Dataset (Feature(..))
+import qualified ML.Dataset as DS
 import qualified ML.Model as M
 import           ML.Model (ModelSpec(..), Predictor(..), ModelInit(..))
 import qualified ML.LinearRegression as LR
@@ -32,8 +35,8 @@ data LinearRegressionGD = LinearRegressionGD
     , cfg              :: ModelConfig
     } -- deriving Show
 
-type LearningRate = Double
-
+type LearningRate     = Double
+type PenaltyWeight    = Double
 type TrainingFinished = Pred TrainingState
 
 -- to solve the gradient descent, the cost function is not necessary,
@@ -44,7 +47,7 @@ type TrainingFinished = Pred TrainingState
 data PenaltyTerm = PenaltyTerm
     { costFunction  :: Vector Double -> Vector Double
     , penaltyDeriv  :: Vector Double -> Vector Double
-    , penaltyWeight :: Double
+    , penaltyWeight :: PenaltyWeight
     }
 
 data TrainingState = TrainingState
@@ -64,6 +67,9 @@ instance Show ModelConfig where
   show ModelConfig { .. } = "ModelConfig{α=" <> GHC.Show.show learnRate <>
       " spec=" <> GHC.Show.show lrModelSpec <>  "}"
 
+instance Summary LinearRegressionGD where
+  summary = summarizeLinearRegressionGD
+
 instance LR.LinearModel LinearRegressionGD where
   coefficients    = lrCoefficients
   rss             = lrRss
@@ -81,9 +87,22 @@ instance Predictor LinearRegressionGD where
 linearRegressionGD :: LearningRate -> Int -> ModelSpec -> M.ModelInit LinearRegressionGD
 linearRegressionGD a n ms =
     let cfg = ModelConfig a noPenalty (maxIterations n) ms
-    in M.ModelInit
-        { fitF        = fitLinearRegression cfg
-        , modelSpec = lrModelSpec cfg }
+    in initLR cfg
+
+ridgeRegression :: PenaltyWeight -> LearningRate -> Int -> ModelSpec -> M.ModelInit LinearRegressionGD
+ridgeRegression pw a n ms =
+    let cfg = ModelConfig a (ridgePenalty pw) (maxIterations n) ms
+    in initLR cfg
+
+lassoRegression :: PenaltyWeight -> LearningRate -> Int -> ModelSpec -> M.ModelInit LinearRegressionGD
+lassoRegression pw a n ms =
+    let cfg = ModelConfig a (lassoPenalty pw) (maxIterations n) ms
+    in initLR cfg
+
+initLR :: ModelConfig -> M.ModelInit LinearRegressionGD
+initLR cfg = M.ModelInit
+    { fitF        = fitLinearRegression cfg
+    , modelSpec = lrModelSpec cfg }
 
 fitLinearRegression :: ModelConfig -> M.FitF LinearRegressionGD
 fitLinearRegression cfg inputCols response =
@@ -115,7 +134,12 @@ step a pt xX y TrainingState { .. } =
     let yHat = xX #> stepCoefficients
         resi = yHat - y
         nRss = resi <.> resi
-        derivatives = (yHat - y) <# xX + LA.scale (penaltyWeight pt) ((penaltyDeriv pt) stepCoefficients)
+        derivatives = if iter `mod` 1000000 == 999999
+                         then (debugShow "parD beta" $ (yHat - y) <# xX)
+                                 + (debugShow "penalty" $ LA.scale (penaltyWeight pt) ((penaltyDeriv pt) stepCoefficients))
+                         else (yHat - y) <# xX
+                                 + LA.scale (penaltyWeight pt) ((penaltyDeriv pt) stepCoefficients)
+
     in  --debugShow "iter" $
         TrainingState
             { stepCoefficients = stepCoefficients - (LA.scale a derivatives)
@@ -143,15 +167,41 @@ noIntercept :: (Double -> Double) -> Int -> Double -> Double
 noIntercept _ 0 _ = 0
 noIntercept f _ x = f x
 
-ridgePenalty :: Double -> PenaltyTerm
+ridgePenalty :: PenaltyWeight -> PenaltyTerm
 ridgePenalty l =
     let costF  = VS.imap (noIntercept (^(2::Int)))
         derivF = VS.imap (noIntercept (2*))
     in PenaltyTerm costF derivF l
 
-lassoPenalty :: Double -> PenaltyTerm
+lassoPenalty :: PenaltyWeight -> PenaltyTerm
 lassoPenalty l =
     let costF  = VS.imap (noIntercept identity)
         derivF = VS.imap (noIntercept signum)
     in PenaltyTerm costF derivF l
 
+summarizeLinearRegressionGD :: LinearRegressionGD -> [Text]
+summarizeLinearRegressionGD lr@LinearRegressionGD { .. } =
+    let ms           = lrModelSpec cfg
+        featureNames = DS.columnNames $ features' ms
+    in [ LR.formatFormula
+        (M.responseName ms)
+        featureNames
+       , "Feature           | coefficient | scaled coef "
+       , "------------------+-------------+-------------"
+       ] ++
+           (DL.zipWith3 formatCoefficientInfo
+            ("Intercept" : featureNames)
+            (VS.toList lrCoefficients)
+            (LR.recoverOriginalCoefficients lr))
+              ++
+                [ ""
+                , sformat ("R^2         : " % fixed 4) (LR.r2 lr)
+                , sformat ("F-Statistics: " % fixed 4) $ LR.fStatistics lr]
+
+
+formatCoefficientInfo :: Text -> Double -> Double -> Text
+formatCoefficientInfo name coef scCoef =
+    let formatString = (left 17 ' ' %. stext) % " | " % floatF 10 5 % " | " % floatF 10 5
+    in sformat formatString name
+        (coef)
+        (scCoef)
