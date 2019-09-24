@@ -172,7 +172,7 @@ fStatistics m =
 mse :: LinearModel a => a -> Double
 mse m =
     let respScale = snd $ scalingFactor $ response $ M.modelSpec' m
-    in rss m * respScale^2 / degreesOfFredom m
+    in rss m * respScale^(2::Int) / degreesOfFredom m
 
 rse :: LinearModel a => a -> Double
 rse = sqrt . mse

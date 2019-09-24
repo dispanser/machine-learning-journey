@@ -11,6 +11,7 @@ import qualified Formatting as F
 import qualified Formatting.ShortFormatters as F
 import           Formatting ((%), (%.))
 import qualified Data.Scientific as Scientific
+import qualified Data.Text as T
 
 class Summary a where
   summary :: a -> [Text]
@@ -28,9 +29,14 @@ textF i = (F.l i ' ' %. F.st)
 floatF :: Real a => Int -> Int -> F.Format r' (a -> r')
 floatF n d = (F.l n ' ' %. F.f d)
 
-numF :: F.Format r' (Integer -> r')
-numF  = F.l 13 ' ' %. (F.fitRight 13 %. F.sf)
+numF :: Real a => Int -> F.Format r' (a -> r')
+numF w = F.l w ' ' %. (F.fitLeft w %. F.sf)
 
 intF :: F.Format r (Integer -> r)
 intF = F.r 4 ' ' %. F.d
 
+formatSome :: Foldable t => Int -> Text -> t Double -> Text
+formatSome w sep xs =
+    let xs' = toList xs
+        formattedItems = F.sformat (numF w) <$> xs'
+    in T.intercalate sep formattedItems

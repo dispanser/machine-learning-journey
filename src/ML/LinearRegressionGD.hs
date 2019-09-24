@@ -137,12 +137,10 @@ step a pt xX y TrainingState { .. } =
     let yHat = xX #> stepCoefficients
         resi = yHat - y
         nRss = resi <.> resi
-        n    = fromIntegral $ VS.length y
-        -- check cost function in browser: I think we're missing some constant factors for
-        -- the derivatives of the OLS, which are normally subsumed by chosing a different
-        -- learning rate (constant factor does not alter the minimization result of all
-        -- derivatives being zero). However, adding another term will skew the results
-        -- in favor of the term that's too large.
+        -- it seems that glmnet package from R optimizes
+        -- 1/2m * RSS + PT (where PT is \l sum(betas) in case of the lasso).
+        -- we're using a different target here (ignoring the 1/m term), so the
+        -- relative weights of the lambda have a different interpretation.
         deriv       = (yHat - y) <# xX
         shrinkDeriv = LA.scale (penaltyWeight pt) ((penaltyDeriv pt) stepCoefficients)
 
@@ -216,5 +214,5 @@ formatCoefficientInfo name coef scCoef =
         (scCoef)
 
 formatTrainingState :: TrainingState -> [Text]
-formatTrainingState TrainingState {..} =  undefined
+formatTrainingState TrainingState {..} = undefined
 
