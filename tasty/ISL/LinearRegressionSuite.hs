@@ -24,7 +24,7 @@ spec_babyRegression = do
     describe "linear-solver based  linear regression" $ do
         babyRegression (LR.fitLinearRegression)
     describe "gradient-descent based linear regression" $ do
-        babyRegression $ LRGD.linearRegressionGD 0.1 2500
+        babyRegression $ LRGD.linearRegressionGD 0.06 500
 
 babyRegression :: M.Predictor a => (M.ModelSpec -> M.ModelInit a) -> Spec
 babyRegression cfgF = do
@@ -65,7 +65,7 @@ spec_ISLRLinearRegressionGD = parallel $
             let Right dsScaled = scaledAdv
             let Right ms = M.buildModelSpec
                     (featureSpace dsScaled) "sales" ["TV"]
-                model = LRGD.linearRegressionGD 0.05 1400 ms
+                model = LRGD.linearRegressionGD 0.005 140 ms
                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
             let [intercept, tvCoef] = V.toList $ LR.coefficients lr
 
@@ -92,7 +92,7 @@ spec_ISLRLinearRegressionGD = parallel $
                 Right ms = M.buildModelSpec
                     (featureSpace dsScaled) "sales" [
                         "TV", "radio", "newspaper"]
-                model = LRGD.linearRegressionGD 0.05 2000 ms
+                model = LRGD.linearRegressionGD 0.005 500 ms
                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
             it "computes coefficents" $ do
                 checkList (LR.recoverOriginalCoefficients lr) [ 2.939, 0.046, -0.001, 0.189 ]
@@ -177,7 +177,7 @@ spec_Regularization = do
             checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
                             , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
                             , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
-        it "produce the same coefficents as R for l=1" $ do
+        xit "produce the same coefficents as R for l=1" $ do
             let model = LRGD.ridgeRegression 1 0.001 20000 ms
                 lr    = M.fitDataset model ds
                 coefs = LR.recoverOriginalCoefficients lr
@@ -199,8 +199,8 @@ spec_Regularization = do
             checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
                             , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
                             , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
-        it "produce the same coefficents as R for l=1" $ do
-            let model = LRGD.lassoRegression 10 0.001 100000 ms
+        xit "produce the same coefficents as R for l=1" $ do
+            let model = LRGD.lassoRegression 1 0.001 100000 ms
                 lr    = M.fitDataset model ds
                 coefs = LR.recoverOriginalCoefficients lr
             mapM_ print $ summary lr

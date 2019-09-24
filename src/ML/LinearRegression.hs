@@ -170,10 +170,12 @@ fStatistics m =
         / rss m * degreesOfFredom m
 
 mse :: LinearModel a => a -> Double
-mse m = rss m / degreesOfFredom m
+mse m =
+    let respScale = snd $ scalingFactor $ response $ M.modelSpec' m
+    in rss m * respScale^2 / degreesOfFredom m
 
 rse :: LinearModel a => a -> Double
-rse            = sqrt . mse
+rse = sqrt . mse
 
 r2 :: LinearModel a => a -> Double
 r2 m = 1 - rss m / tss m

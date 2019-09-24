@@ -143,7 +143,7 @@ step a pt xX y TrainingState { .. } =
         -- learning rate (constant factor does not alter the minimization result of all
         -- derivatives being zero). However, adding another term will skew the results
         -- in favor of the term that's too large.
-        deriv       = LA.scale (1/n) (yHat - y) <# xX
+        deriv       = (yHat - y) <# xX
         shrinkDeriv = LA.scale (penaltyWeight pt) ((penaltyDeriv pt) stepCoefficients)
 
     in TrainingState
