@@ -14,7 +14,10 @@ catFeat :: Text -> NonEmpty Text-> Feature
 catFeat = createCategorical
 
 shouldRoughlyEqual :: (Show a, Num a, Ord a, Fractional a) => a -> a -> IO ()
-shouldRoughlyEqual actual expected = actual `shouldSatisfy` roughlyEqual expected
+shouldRoughlyEqual actual expected =
+    if actual `roughlyEqual` expected
+       then return ()
+       else actual `shouldBe` expected
 
 roughlyEqual :: (Num a, Ord a, Fractional a) => a -> a -> Bool
 roughlyEqual expected actual =

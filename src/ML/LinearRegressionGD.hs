@@ -33,6 +33,7 @@ data LinearRegressionGD = LinearRegressionGD
     , n                :: Int
     , p                :: Int
     , cfg              :: ModelConfig
+    , history          :: [TrainingState]
     } -- deriving Show
 
 type LearningRate     = Double
@@ -52,9 +53,11 @@ data PenaltyTerm = PenaltyTerm
 
 data TrainingState = TrainingState
     { stepCoefficients :: Vector Double
-    , rss          :: Double
-    , dRss         :: Double
-    , iter         :: Int } deriving Show
+    , rss              :: Double
+    , dRss             :: Double
+    , iter             :: Int
+    , derivative       :: Vector Double
+    , shrinkDerivative :: Vector Double } deriving Show
 
 data ModelConfig = ModelConfig
     { learnRate   :: LearningRate
@@ -116,9 +119,9 @@ fitLinearRegression cfg inputCols response =
         lrTss            = yDelta <.> yDelta
         lrDF             = n - p - 1
         step'            = step (learnRate cfg) (penaltyTerm cfg) xX y
-        initialState     = TrainingState (VS.replicate (succ p) 0.0) lrTss lrTss 0
-        stateSeq         = iterate step' initialState
-        finalState       = RU.head $ dropWhile (finishPred cfg) stateSeq
+        initialState     = TrainingState (VS.replicate (succ p) 0.0) lrTss lrTss 0 VS.empty VS.empty
+        (history, rest)  = DL.span (finishPred cfg) $ iterate step' initialState
+        finalState       = RU.head rest
         lrCoefficients   = stepCoefficients finalState
         residuals        = y - LR.predictLinearRegression lrCoefficients xs
         lrRss            = residuals <.> residuals
@@ -134,18 +137,22 @@ step a pt xX y TrainingState { .. } =
     let yHat = xX #> stepCoefficients
         resi = yHat - y
         nRss = resi <.> resi
-        derivatives = if iter `mod` 1000000 == 999999
-                         then (debugShow "parD beta" $ (yHat - y) <# xX)
-                                 + (debugShow "penalty" $ LA.scale (penaltyWeight pt) ((penaltyDeriv pt) stepCoefficients))
-                         else (yHat - y) <# xX
-                                 + LA.scale (penaltyWeight pt) ((penaltyDeriv pt) stepCoefficients)
+        n    = fromIntegral $ VS.length y
+        -- check cost function in browser: I think we're missing some constant factors for
+        -- the derivatives of the OLS, which are normally subsumed by chosing a different
+        -- learning rate (constant factor does not alter the minimization result of all
+        -- derivatives being zero). However, adding another term will skew the results
+        -- in favor of the term that's too large.
+        deriv       = LA.scale (1/n) (yHat - y) <# xX
+        shrinkDeriv = LA.scale (penaltyWeight pt) ((penaltyDeriv pt) stepCoefficients)
 
-    in  --debugShow "iter" $
-        TrainingState
-            { stepCoefficients = stepCoefficients - (LA.scale a derivatives)
-            , iter         = iter + 1
-            , rss          = nRss
-            , dRss         = rss - nRss }
+    in TrainingState
+        { stepCoefficients = stepCoefficients - LA.scale a (deriv + shrinkDeriv)
+        , iter             = iter + 1
+        , rss              = nRss
+        , dRss             = rss - nRss
+        , derivative       = deriv
+        , shrinkDerivative = shrinkDeriv}
 
 -- signals true iff the rss change between two consecutive training states is smaller
 -- than the given threshold
@@ -168,16 +175,19 @@ noIntercept _ 0 _ = 0
 noIntercept f _ x = f x
 
 ridgePenalty :: PenaltyWeight -> PenaltyTerm
-ridgePenalty l =
-    let costF  = VS.imap (noIntercept (^(2::Int)))
-        derivF = VS.imap (noIntercept (2*))
-    in PenaltyTerm costF derivF l
+ridgePenalty l = PenaltyTerm
+    { costFunction  = VS.imap (noIntercept (^(2::Int)))
+    , penaltyDeriv  = VS.imap (noIntercept (2*))
+    , penaltyWeight = l }
 
+-- lasso is not differentiable, fora discussion on the problems see
+-- https://en.wikipedia.org/wiki/Proximal_gradient_methods_for_learning
+-- http://www.cs.cmu.edu/~ggordon/10725-F12/slides/08-general-gd.pdf
 lassoPenalty :: PenaltyWeight -> PenaltyTerm
-lassoPenalty l =
-    let costF  = VS.imap (noIntercept identity)
-        derivF = VS.imap (noIntercept signum)
-    in PenaltyTerm costF derivF l
+lassoPenalty l = PenaltyTerm
+    { costFunction  = VS.imap (noIntercept identity)
+    , penaltyDeriv  = VS.imap (noIntercept signum)
+    , penaltyWeight = l }
 
 summarizeLinearRegressionGD :: LinearRegressionGD -> [Text]
 summarizeLinearRegressionGD lr@LinearRegressionGD { .. } =
@@ -198,10 +208,13 @@ summarizeLinearRegressionGD lr@LinearRegressionGD { .. } =
                 , sformat ("R^2         : " % fixed 4) (LR.r2 lr)
                 , sformat ("F-Statistics: " % fixed 4) $ LR.fStatistics lr]
 
-
 formatCoefficientInfo :: Text -> Double -> Double -> Text
 formatCoefficientInfo name coef scCoef =
     let formatString = (left 17 ' ' %. stext) % " | " % floatF 10 5 % " | " % floatF 10 5
     in sformat formatString name
         (coef)
         (scCoef)
+
+formatTrainingState :: TrainingState -> [Text]
+formatTrainingState TrainingState {..} =  undefined
+

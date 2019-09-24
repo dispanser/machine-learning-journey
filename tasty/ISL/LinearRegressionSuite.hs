@@ -8,7 +8,7 @@ module ISL.LinearRegressionSuite where
 import           Base
 import qualified ML.Model as M
 import           ML.Data.Summary
-import           ML.Dataset.CSV (readRawData)
+import           ML.Dataset.CSV (readRawData, readRawData')
 import           ML.Dataset (Dataset(..))
 import qualified ML.Dataset as DS
 import           Test.Tasty.Hspec (Spec)
@@ -24,7 +24,7 @@ spec_babyRegression = do
     describe "linear-solver based  linear regression" $ do
         babyRegression (LR.fitLinearRegression)
     describe "gradient-descent based linear regression" $ do
-        babyRegression $ LRGD.linearRegressionGD 0.018 2500
+        babyRegression $ LRGD.linearRegressionGD 0.1 2500
 
 babyRegression :: M.Predictor a => (M.ModelSpec -> M.ModelInit a) -> Spec
 babyRegression cfgF = do
@@ -65,7 +65,7 @@ spec_ISLRLinearRegressionGD = parallel $
             let Right dsScaled = scaledAdv
             let Right ms = M.buildModelSpec
                     (featureSpace dsScaled) "sales" ["TV"]
-                model = LRGD.linearRegressionGD 0.005 140 ms
+                model = LRGD.linearRegressionGD 0.05 1400 ms
                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
             let [intercept, tvCoef] = V.toList $ LR.coefficients lr
 
@@ -92,7 +92,7 @@ spec_ISLRLinearRegressionGD = parallel $
                 Right ms = M.buildModelSpec
                     (featureSpace dsScaled) "sales" [
                         "TV", "radio", "newspaper"]
-                model = LRGD.linearRegressionGD 0.005 500 ms
+                model = LRGD.linearRegressionGD 0.05 2000 ms
                 lr@LRGD.LinearRegressionGD {..} = M.fitDataset model dsScaled
             it "computes coefficents" $ do
                 checkList (LR.recoverOriginalCoefficients lr) [ 2.939, 0.046, -0.001, 0.189 ]
@@ -170,24 +170,47 @@ spec_Regularization = do
         --         coefs = LR.recoverOriginalCoefficients lr
         --     mapM_ print $ summary lr
         --     coefs `shouldBe` []
-        it "produce the coefficents stated in the book for l=705" $ do
-            let model = LRGD.ridgeRegression 705 0.0006 5000 ms
+        it "produce the same coefficents as the unregularized LR for l=0" $ do
+            let model = LRGD.ridgeRegression 0 0.001 10000 ms
+                lr    = M.fitDataset model ds
+                coefs = LR.recoverOriginalCoefficients lr
+            checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
+                            , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
+                            , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
+        it "produce the same coefficents as R for l=1" $ do
+            let model = LRGD.ridgeRegression 1 0.001 20000 ms
                 lr    = M.fitDataset model ds
                 coefs = LR.recoverOriginalCoefficients lr
             mapM_ print $ summary lr
-            coefs `shouldBe` []
-        -- it "produce the coefficents stated in the book for l=1" $ do
-        --     let model = LRGD.ridgeRegression 0 0.0005 200 ms
+            checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
+                            , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
+                            , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
+    describe "the lasso" $ do
+        -- it "produce the coefficents stated in the book for l=11498" $ do
+        --     let model = LRGD.ridgeRegression 11498 0.00005 1000 ms
         --         lr    = M.fitDataset model ds
         --         coefs = LR.recoverOriginalCoefficients lr
-        --     print $ "number of coefficients: " <> show (length coefs)
         --     mapM_ print $ summary lr
         --     coefs `shouldBe` []
+        it "produce the same coefficents as the unregularized LR for l=0" $ do
+            let model = LRGD.lassoRegression 0 0.001 10000 ms
+                lr    = M.fitDataset model ds
+                coefs = LR.recoverOriginalCoefficients lr
+            checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
+                            , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
+                            , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
+        it "produce the same coefficents as R for l=1" $ do
+            let model = LRGD.lassoRegression 10 0.001 100000 ms
+                lr    = M.fitDataset model ds
+                coefs = LR.recoverOriginalCoefficients lr
+            mapM_ print $ summary lr
+            checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
+                            , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
+                            , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
     describe "gradient descent regression" $ do
         let originalCoefficients = [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
-                               , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
-                               , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
-
+                                   , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
+                                   , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
         it "produce the coefficents on non-constrained lr" $ do
             let model = LRGD.linearRegressionGD 0.001 9000 ms
                 lr    = M.fitDataset model ds
@@ -224,5 +247,5 @@ readAdvertisingDataset ss = do
 
 readHittersDataset :: ScaleStrategy ->  IO Dataset
 readHittersDataset ss = do
-    Right ds <- DS.parseScaledDataset ss <$> readRawData "data/hitters/HittersNoSalaryNA.csv"
+    Right ds <- DS.parseScaledDataset ss <$> readRawData' (/= "") "data/hitters/HittersNoSalaryNA.csv"
     return ds

@@ -123,8 +123,6 @@ fitLR ms inputCols response =
         mse'             = lrRss / fromIntegral lrDF
         lrStandardErrors = M.takeDiag $ M.scale mse' (
             M.inv . M.unSym $ M.mTm xX) ** 0.5
-        -- TODO: re-instantiate. probably by tupling the columns with their
-        -- name, and then filtering out, and using these names here, somehow
         fs'              = foldl' removeColumn (features' ms) (fst <$> removedCols)
         lrModelSpec      = ms { features' =  fs' }
     in  LinearRegression { .. }
