@@ -1,9 +1,11 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module ML.Common.KNN where
 
 import qualified Relude.Unsafe as RU
 import qualified Data.Vector as V
+import qualified Data.Vector.Generic as GV
 import qualified Data.Vector.Storable as VS
 import           Numeric.LinearAlgebra (Matrix, R, fromColumns, fromRows, pairwiseD2, toColumns)
 
@@ -11,15 +13,15 @@ import           Numeric.LinearAlgebra (Matrix, R, fromColumns, fromRows, pairwi
 -- quantitative values for regression and qualitative values for classification.
 data KNearest a = KNearest
     { knnX :: Matrix R
-    , knnY :: VS.Vector a
+    , knnY :: V.Vector a
     }
 
--- little helper to find the k nearest neighbors for a single observation
-findNearest :: VS.Storable a => KNearest a -> Int -> VS.Vector R -> [a]
+-- find the k nearest neighbors for a single observation
+findNearest :: GV.Vector v R => KNearest a -> Int -> v R -> [a]
 findNearest KNearest {..} k x0 =
-    let dsts = VS.toList $ RU.head $ toColumns $ pairwiseD2 knnX $ fromRows [x0]
-        res  = sortOn fst $ zip dsts $ VS.toList knnY
+    let dsts = VS.toList $ RU.head $ toColumns $ pairwiseD2 knnX $ fromRows [VS.convert x0]
+        res  = sortOn fst $ zip dsts $ V.toList knnY
     in take k $ snd <$> res
 
-initKNN :: VS.Storable a => [V.Vector Double] -> V.Vector a -> KNearest a
-initKNN xs y = KNearest (fromColumns $ VS.convert <$> xs) $ VS.convert y
+initKNN :: [V.Vector Double] -> V.Vector a -> KNearest a
+initKNN xs y = KNearest (fromColumns $ VS.convert <$> xs) y

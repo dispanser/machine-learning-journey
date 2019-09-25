@@ -214,5 +214,5 @@ formatCoefficientInfo name coef scCoef =
         (scCoef)
 
 formatTrainingState :: TrainingState -> [Text]
-formatTrainingState TrainingState {..} = undefined
+formatTrainingState ts@TrainingState {..} = [Prelude.show ts]
 
