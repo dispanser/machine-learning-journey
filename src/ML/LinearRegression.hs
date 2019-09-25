@@ -37,7 +37,7 @@ data LinearRegression = LinearRegression
 
 -- not everything is actually restricted to linear model, but that's all
 -- we got for now
-class M.Model a => LinearModel a where
+class LinearModel a where
   coefficients    :: a -> Vector Double
   rss             :: a -> Double
   tss             :: a -> Double
@@ -169,15 +169,15 @@ fStatistics m =
     (tss m - rss m) / (fromIntegral . pred . VS.length $ coefficients m)
         / rss m * degreesOfFredom m
 
-mse :: LinearModel a => a -> Double
+mse :: (M.Model a, LinearModel a) => a -> Double
 mse m =
     let respScale = snd $ scalingFactor $ response $ M.modelSpec' m
     in rss m * respScale^(2::Int) / degreesOfFredom m
 
-rse :: LinearModel a => a -> Double
+rse :: (M.Model a, LinearModel a) => a -> Double
 rse = sqrt . mse
 
-r2 :: LinearModel a => a -> Double
+r2 :: (M.Model a, LinearModel a) => a -> Double
 r2 m = 1 - rss m / tss m
 
 pValue :: Double -> Double -> Double
@@ -205,7 +205,7 @@ scalingFactor :: Metadata -> F.Scaling
 scalingFactor (Continuous _ sc)   = sc
 scalingFactor (Categorical _ _ _) = (0, 1)
 
-recoverOriginalCoefficients :: LinearModel a => a -> [Double]
+recoverOriginalCoefficients :: (M.Model a, LinearModel a) => a -> [Double]
 recoverOriginalCoefficients m =
     let ms = M.modelSpec' m
         fs = features' ms
