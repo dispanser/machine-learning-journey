@@ -7,7 +7,6 @@ import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
 import qualified Data.Vector as V
 import           ML.Common.KNN (findNearest, initKNN)
-import           ML.Classification (classify)
 import           ML.Classification.KNearestClassifier (initKNNClassifier, classifyKNN)
 
 spec_NearestNeighbors :: Spec

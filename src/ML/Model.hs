@@ -8,6 +8,7 @@ module ML.Model where
 
 import qualified Relude.Unsafe as RU
 import qualified ML.Dataset as DS
+import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as VU
 import           ML.Dataset ( Dataset(..), FeatureSpace(..)
                             , Metadata(..), Feature)
@@ -24,6 +25,13 @@ data ModelInit a = ModelInit
 
 class Predictor a => Model a where
   modelSpec' :: a -> ModelSpec
+
+data ModelR a b = ModelR
+    { predictR  :: [VU.Vector Double] -> V.Vector b -- TODO: knn model currently doesn't do vectors
+    , buildWith :: ModelSpec
+    , cost      :: b -> b -> Double
+    , modelInfo :: a
+    }
 
 -- something that can make predictions. It also knows the feature space,
 -- because that helps writing generic functions that directly work on dataset
