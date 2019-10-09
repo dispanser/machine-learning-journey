@@ -4,9 +4,9 @@ packages:
 extra-deps:
   - hmatrix-0.20.0.0
   - hmatrix-morpheus-0.1.1.2
-  # - diagrams-lib-1.4.2.3
-  # - diagrams-svg-1.4.2
-  # - test-invariant-0.4.5.0
+  - Frames-0.6.1@sha256:9d628962ed6d1e835ab2b4d309d7909dc477acf6fa270879b6085621546dccaa,8595
+  - foldl-statistics-0.1.5.1@sha256:1f12bc2b48b9d52403947754ad2338b25673232e3f360837130bb55a94805568,3192
+  - discrimination-0.4@sha256:ad60cb42d42648ebc6f649ce761fe61cb58eca9e2b17a6b4fe68ed2e1fdd4146,2479
 
 flags:
     hmatrix:

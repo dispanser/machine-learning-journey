@@ -20,6 +20,13 @@ dependencies:
   - formatting
   - scientific
   - pretty-simple
+  - Frames
+  - foldl
+  - foldl-statistics
+  - vinyl
+  - ghc-prim
+  - microlens
+  - statistics
 
 library:
   source-dirs: src
@@ -30,7 +37,6 @@ library:
     - Chart
     - hmatrix
     - hmatrix-morpheus
-    - statistics
 
 executables:
   examples:
