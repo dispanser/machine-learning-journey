@@ -3,8 +3,6 @@
 module ML.Data.Frames where
 
 -- import GHC.Types (Symbol)
-import qualified Data.Vinyl.Lens as V
-import qualified Data.Vinyl.Core as V
 import qualified Data.Vinyl.TypeLevel as V
 import           Lens.Micro
 import           Lens.Micro.Extras
@@ -42,8 +40,12 @@ normalizeColumn' :: a F.∈ rs =>
 normalizeColumn' readF updateF frame =
     let mean = L.fold S.mean                           $ readF <$> frame
         vari = sqrt $ L.fold (S.varianceUnbiased mean) $ readF <$> frame
-    in (updateF %~ ((/3) . subtract 4)) <$> frame
+    in (updateF %~ ((/vari) . subtract mean)) <$> frame
 
+
+normalizeColumn :: (Foldable f, Functor f,
+    F.RecElem F.Rec Sales Sales rs rs (V.RIndex Sales rs)) =>
+      f (F.Record rs) -> f (F.Record rs)
 
 -- normalizeColumn :: DoubleField f a rs -> F.FrameRec rs -> F.FrameRec rs
 normalizeColumn frame =
