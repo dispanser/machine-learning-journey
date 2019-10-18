@@ -27,6 +27,9 @@ dependencies:
   - ghc-prim
   - microlens
   - statistics
+  - mwc-random
+  - mwc-probability
+  - primitive
 
 library:
   source-dirs: src
