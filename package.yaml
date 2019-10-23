@@ -30,6 +30,8 @@ dependencies:
   - mwc-random
   - mwc-probability
   - primitive
+  - hmatrix
+  - hmatrix-morpheus
 
 library:
   source-dirs: src
@@ -38,8 +40,6 @@ library:
     - hashable
     - microlens
     - Chart
-    - hmatrix
-    - hmatrix-morpheus
 
 executables:
   examples:

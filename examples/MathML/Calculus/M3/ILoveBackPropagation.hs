@@ -15,13 +15,15 @@ module MathML.Calculus.M3.ILoveBackPropagation where
 import qualified Relude.Unsafe as RU
 import           Control.Monad.Primitive (PrimMonad, PrimState)
 import qualified Numeric.LinearAlgebra as M
-import           Numeric.LinearAlgebra (Matrix, R, (<#), (><))
+import           Numeric.LinearAlgebra (Matrix, R, (><))
 import qualified ML.Data.Generate as DG
 import qualified ML.Dataset as DS
 import qualified ML.Dataset.CSV as DSV
 import           Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as VS
 import           System.Random.MWC (Gen, create)
+
+type LearnRate = Double
 
 -- simplest possible representation of a layer fully connected to previous
 data Layer = Layer -- fully connected, for now
@@ -38,36 +40,55 @@ data LayerState = LayerState
     { a :: Matrix R
     , z :: Matrix R } deriving Show
 
-data BackPropState = BackPropState
+data LayerGradients = LayerGradients
     { jw :: Matrix R
-    , jb :: Matrix R } deriving Show
+    , jb :: Vector R } deriving Show
 
 data NetworkState = NetworkState
-    { a0          :: Vector R
-    , layerStates :: [LayerState] }
+    { a0          :: Matrix R
+    , layerStates :: [LayerState] } deriving Show
 
-newtype NN     = NN { unLayers :: [Layer] }
+newtype NN     = NN { unLayers :: [Layer] } deriving Show
 newtype NNSpec = NNSpec { unSpec :: [(Int, Int)] }
 
 type Sigmoid a = a -> a
 
--- process one layer by taking its input values (vector of length m)
--- and produce the outputs of the current layer (vector of length n)
+-- fw' w b = M.sumElements $ 0.5 * 2 * (fw w b - y) * (1/cosh(z' w b)**2) * a0'
+-- fb' w b = M.sumElements $ 0.5 * 2 * (fw w b - y) * (1/cosh(z' w b)**2)
+
+backprop :: Sigmoid R -> Matrix R -> NetworkState -> [LayerGradients]
+backprop sg' ys NetworkState { .. } = backprop' a0 layerStates
+ where
+    backprop' :: Matrix R -> [LayerState] -> [LayerGradients]
+    backprop' xs [LayerState{..}] =
+        let n = fromIntegral $ M.rows ys
+            dCda = M.scale (2/n) (a - ys) -- n x p - n x p -> n x p
+            dadz = M.cmap sg' z           -- n x p -> n x p
+            -- dzdw is the jacobian containing the partial derivative for each element w_ij of w.
+            -- each column is identical, because they all only depend on the previous layer outputs.
+            -- each element in the i'ths row is the average of the input activation levels of the
+            -- associated a_i neuron from the previousl layer.
+            dCdz = dCda * dadz
+            jw   = M.scale n $ M.tr dCdz <> xs
+            jb   = VS.fromList $ (/n) . VS.sum <$> M.toColumns dCdz
+
+        in [LayerGradients { .. }]
+    backprop' _  []               = []
+    backprop' xs (l:ls)           =
+        let bps@(lastBS:_) = backprop' (a l) ls
+        in undefined
+
+-- process one layer by taking its input values (matrix n x m)
+-- and produce the outputs of the current layer (matrix n x p)
+-- on a layer with p neurons and m neurons in the previous layer
 forwardLayer :: Sigmoid R -> Layer -> Matrix R -> LayerState
 forwardLayer sg Layer {..} x =
     let z = (x <> w) + M.fromColumns [b]
         a = M.cmap sg z
     in LayerState { .. }
 
--- process multiple input vectors (n x m) on a neural network with p
--- outputs, resulting  in a n x p matrix of results.
-forwardAll :: Sigmoid R -> NN -> Matrix R -> Matrix R
-forwardAll sg NN {..} xs =
-    let fwd xs' l = M.cmap sg $ (xs' <> w l) + M.fromColumns [b l]
-    in foldl' fwd xs unLayers
-
-forwardNetwork :: Sigmoid R -> NN -> Matrix R -> [LayerState]
-forwardNetwork sg NN { .. } x = go x unLayers
+forwardNetwork :: Sigmoid R -> NN -> Matrix R -> NetworkState
+forwardNetwork sg NN { .. } x = NetworkState x $ go x unLayers
     where go _ []      = []
           go x' (l:ls) =
               let st = forwardLayer sg l x'
@@ -85,22 +106,48 @@ initializeNetwork NNSpec {..} = do
     unLayers <- forM unSpec $ uncurry (initializeLayer rg)
     return NN { .. }
 
+-- update the weights in the layer according to the gradients stored
+-- in the backprop structure.
+updateLayer :: LearnRate -> Layer -> LayerGradients -> Layer
+updateLayer lr l g = l
+    { w = w l - M.scale lr (jw g)
+    , b = b l - M.scale lr (jb g) }
+
+updateNetwork :: LearnRate -> NN -> [LayerGradients] -> NN
+updateNetwork lr nn gs = nn
+    { unLayers = zipWith (updateLayer lr) (unLayers nn) gs }
+
+
 -- the example network that is supposed to to negation, randomly initialized :)
-notNN :: NN
-notNN = NN [Layer 1 1 (M.scalar 1.3) (M.scalar (-0.1))]
+notNNInit :: Double -> Double -> NN
+notNNInit w b = NN [Layer 1 1 (M.scalar w) (M.scalar b)]
+
+train :: LearnRate -> Matrix R -> Matrix R -> Int -> NN -> NN
+train lr xs ys n = RU.head . drop (n-1) . iterate step
+ where step nn = let ns  = forwardNetwork tanh nn xs
+                     bp  = backprop tanh' ys ns
+                 in  updateNetwork lr nn bp
+
+runNotNN :: NN -> IO ()
+runNotNN nn = do
+    let xs  = (2><1) [0, 1]
+        ys  = (2><1) [1, 0]
+        ns = forwardNetwork tanh nn xs
+        bp  = backprop tanh' ys ns
+        -- nn  = updateNetwork 0.1 nn bp
+    putStrLn $ "a[0, 1]  = " ++ show (layerStates ns)
+    putStrLn $ "backprop = " ++ show bp
+    putStrLn $ "updated  = " ++ show (updateNetwork 1 nn bp)
+    putStrLn $ "10 runs  = " ++ show (train 0.1 xs ys 5000 nn)
+
+tanh' :: Sigmoid R
+tanh' x = (1/cosh x) ** 2
 
 notNetMain :: IO ()
 notNetMain = do
-    let a0 = forwardLayer tanh (RU.head $ unLayers notNN) (M.fromLists [[0]])
-        a1 = forwardLayer tanh (RU.head $ unLayers notNN) (M.fromLists [[1]])
-    putStrLn $ "a(0) = " ++ show a0
-    putStrLn $ "a(1) = " ++ show a1
-    let a0' = forwardNetwork tanh notNN (M.fromLists [[0]])
-    let a1' = forwardNetwork tanh notNN (M.fromLists [[1]])
-    putStrLn $ "a(0) = " ++ show a0'
-    putStrLn $ "a(1) = " ++ show a1'
-    let a01 = forwardNetwork tanh notNN ((1><2) [0, 1])
-    putStrLn $ "a[0, 1] = " ++ show a01
+    runNotNN $ notNNInit 1.3 (-0.1)
+    -- runNotNN $ notNNInit (-1) 1
+    -- runNotNN $ notNNInit (-5) 5
 
 cost :: Matrix R -> Matrix R -> R
 cost x y =  M.norm_2 . M.cmap (**2) $ x - y
@@ -109,7 +156,6 @@ main :: IO ()
 main = do
     nn <- initializeNetwork $ NNSpec [(1, 6), (6, 7), (7, 2)]
     notNetMain
-    print "Hello World"
 
 -- sigmoid: logistic function. operates on a scalar (in contrast to numpy def)
 -- because we'll just map that over our vector.
