@@ -1,7 +1,6 @@
 module MathML.PCA.InnerProduct where
 
 import Numeric.LinearAlgebra as LA
-import qualified Numeric.LinearAlgebra ((<#), (#>), (<.>))
 
 -- ^ compute inner product based on a given matrix
 innerProduct :: LA.Matrix R -> LA.Vector R -> LA.Vector R -> R
@@ -19,6 +18,7 @@ ones n = LA.vector $ replicate n 1
 ip  = innerProduct
 id2 = ident 2
 id3 = ident 3
+
 v123 = (LA.vector [1, 2, 3])
 v321 = (LA.vector [3, 2, 1])
 

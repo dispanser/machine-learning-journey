@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module ML.Dataset.CSV where
 
@@ -17,10 +16,12 @@ readRawData = readRawData' (const True)
 
 -- read raw data from input
 readRawData' :: Pred Text -> FilePath -> IO RawData
-readRawData' p f =
-    parseCSVFromFile f >>= \case
+readRawData' p f = do
+    csv <- parseCSVFromFile f
+    let cleaned = filter acceptRecord <$> csv
+    case cleaned of
         Right (header:body) ->
-            let bodyColumns = (toText <$>) <$> transpose (filter (/= [""]) body)
+            let bodyColumns = (toText <$>) <$> transpose body
                 fullHeaders = toText <$> header
                 headers     = filter p $ fullHeaders
                 features    = filter (p . fst) $ zip fullHeaders bodyColumns
@@ -36,6 +37,11 @@ readRawData' p f =
                 }
         Right []  -> error $ "no data: empty csv"
         Left  err -> error $ show err
+
+acceptRecord :: [String] -> Bool
+acceptRecord [""]  = False
+acceptRecord (x:_) = not $ "#" `isPrefixOf` x
+acceptRecord _     = True
 
 writeCsv :: FilePath -> [(Column Double, Double -> String)] -> IO ()
 writeCsv fp columns = writeFile fp $ printCSV (header:body)
