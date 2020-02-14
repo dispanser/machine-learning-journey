@@ -1,0 +1,7 @@
+* On Feature Scaling
+
+Scikit learn [[https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-scaler][documentation]] describes roughly what we're trying to implement:
+- scale each column independently using standardization (z-score normalization)
+- store the resulting coefficients somehwere (?), to be able to re-apply the
+  same transformation on other (e.g. test) data later
+- 

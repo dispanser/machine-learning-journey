@@ -16,4 +16,4 @@ flags:
         openblas:              true
 nix:
   enable: true
-  packages: [ openblasCompat, liblapack ]
+  packages: [ openblasCompat, liblapack, zlib ]

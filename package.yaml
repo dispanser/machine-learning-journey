@@ -21,8 +21,6 @@ dependencies:
   - scientific
   - pretty-simple
   - Frames
-  - foldl
-  - foldl-statistics
   - vinyl
   - ghc-prim
   - microlens
