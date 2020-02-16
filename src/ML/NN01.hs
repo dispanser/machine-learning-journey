@@ -72,17 +72,16 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
         let dCda  = M.scale 2 (a - ys) -- n x p - n x p -> n x p
             dadz  = M.cmap (sigmoid' . sigm . spec $ layer) z -- n x p -> n x p
             dCdz' =  dCda * dadz
-        in [ -- debugShow "last layer gradients"
-             LayerGradients { jw   = matrixDim "[last] jw" $ M.tr xs <> dCdz'
+        in [ LayerGradients { jw   = M.tr xs <> dCdz'
                             , jb   = VS.fromList $ VS.sum <$> M.toColumns dCdz'
-                            , dCdz = matrixDim "[last] dCdz" dCdz' } ]
+                            , dCdz = dCdz' } ]
     backprop' xs (l:l':ls) =
         let bps@(lastBS:_) = backprop' (a l) $ l':ls
             sg'            = sigmoid' . sigm . spec . layer $ l
-            dadz           = matrixDim "dadz" $ M.cmap sg' $ z l
-            wLast          = matrixDim "[last] w" $ w (layer l')
-            dCdz'          = matrixDim "dCdz'" $ (dCdz lastBS <> M.tr wLast) * dadz
-        in LayerGradients { jw   = matrixDim "jw" $ M.tr xs <> dCdz'
+            dadz           = M.cmap sg' $ z l
+            wLast          = w (layer l')
+            dCdz'          = (dCdz lastBS <> M.tr wLast) * dadz
+        in LayerGradients { jw   = M.tr xs <> dCdz'
                           , jb   = VS.fromList $ VS.sum <$> M.toColumns dCdz'
                           , dCdz = dCdz'
                           } : bps
@@ -98,14 +97,14 @@ forwardLayer layer@Layer {..} x =
 
 forwardNetwork :: NeuralNetwork -> Matrix R -> Matrix R -> NetworkState
 forwardNetwork NeuralNetwork { .. } xs ys = NetworkState xs theta layerStates
- where layerStates = go xs unLayers
+ where layerStates  = go xs unLayers
        go _ []      = []
        go x' (l:ls) =
            let st = forwardLayer l x'
            in st : go (a st) ls
        theta = let res = a (RU.last layerStates)
                    err = M.cmap (**2) $ ys - res
-               in debugShow "theta" $ M.sumElements err
+               in M.sumElements err
 
 initializeLayer :: (PrimMonad m) => Gen (PrimState m) -> Int -> LayerSpec -> m Layer
 initializeLayer rg m spec = do

@@ -19,6 +19,9 @@ import qualified Data.Vector.Storable as VS
 import qualified ML.Dataset as DS
 import qualified ML.Dataset.CSV as DSV
 import qualified ML.NN01 as NN
+import qualified Data.List.Split as S
+import qualified Visuals.Image as VI
+import qualified Codec.Picture as JP
 
 -- the example network that is supposed to to negation, randomly initialized :)
 notNNInit :: Double -> Double -> NN.NeuralNetwork
@@ -41,8 +44,6 @@ runNotNN nn = do
 notNetMain :: IO ()
 notNetMain =
     runNotNN $ notNNInit 1.3 (-0.1)
-    -- runNotNN $ notNNInit (-1) 1
-    -- runNotNN $ notNNInit (-5) 5
 
 cost :: Matrix R -> Matrix R -> R
 cost x y =  M.norm_2 . M.cmap (**2) $ x - y
@@ -53,15 +54,24 @@ main =
 
 iLoveBackPropagation :: IO ()
 iLoveBackPropagation = do
-    let learnRate = 0.002
     nn <- NN.initializeNetwork $ NN.NetworkSpec 1 [
-        -- NN.LayerSpec 3 NN.Tanh learnRate, NN.LayerSpec 2 NN.Tanh learnRate ]
-        NN.LayerSpec 6 NN.Tanh 0.002, NN.LayerSpec 7 NN.Tanh 0.002 , NN.LayerSpec 2 NN.Tanh 0.002 ]
-        -- NN.LayerSpec 1 NN.Tanh 0.002, NN.LayerSpec 2 NN.Tanh 0.001 ]
+        NN.LayerSpec 6 NN.Tanh 0.005, NN.LayerSpec 7 NN.Tanh 0.003 , NN.LayerSpec 2 NN.Tanh 0.002 ]
     (inp, out) <- slice 100
-    let res = RU.last $ take 15000 $ NN.train' inp out nn
+    let nss = NN.train' inp out nn
+    let n = 300
+    mapM_ (print . NN.theta . snd) $ everyNth (n `div` 10) $ take n $  RU.tail nss
+    let res = RU.last . take n $ nss
+    let evalHeart = evalNetwork $ fst res
     print $ fst res
-    -- print $ NN.forwardNetwork NN.tanhSigmoid nn inp out
+    -- JP.writePng  "/tmp/heart.png" $ VI.imageFromPixelMap $
+    --     VI.generateTimeSeriesImage evalHeart 1024 768
+
+evalNetwork :: NN.NeuralNetwork -> Double -> (Double, Double)
+evalNetwork nn x =
+    let nss = NN.forwardNetwork nn (M.scalar x) (M.fromColumns [M.fromList [0, 0]])
+        res = NN.a . RU.last $ NN.layerStates nss
+        [[x', y']] = VS.toList <$> M.toRows res
+    in (x', 1-y')
 
 slice :: Int -> IO (Matrix R, Matrix R)
 slice n = do
@@ -75,3 +85,6 @@ readDataset :: IO DS.Dataset
 readDataset = do
     Right ds <- DS.parseFullDataset <$> DSV.readRawData "data/mml/ILoveBackPropagation.csv"
     return ds
+
+everyNth :: Int -> [a] -> [a]
+everyNth n xs = RU.head <$> S.chunksOf n xs

@@ -12,6 +12,7 @@ ghc-options: -Wall
 dependencies:
   - base-noprelude >= 4.8.0 && <5
   - relude
+  - split
   - vector
   - text
   - containers
@@ -30,13 +31,13 @@ dependencies:
   - primitive
   - hmatrix
   - hmatrix-morpheus
+  - JuicyPixels
 
 library:
   source-dirs: src
   dependencies:
     - random
     - hashable
-    - microlens
     - Chart
 
 executables:

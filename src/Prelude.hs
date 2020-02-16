@@ -27,8 +27,8 @@ traceSome prefix f x =
     let msg = show prefix <> ": " <> show (f x)
     in myTrace msg x
 
-myTrace = flip const
--- myTrace = D.trace
+-- myTrace = flip const
+myTrace = D.trace
 
 type Pred a = a -> Bool
 
