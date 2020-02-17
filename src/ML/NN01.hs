@@ -12,6 +12,7 @@ import qualified Data.Vector.Storable as VS
 import qualified ML.Data.Generate as DG
 import           Numeric.LinearAlgebra (Matrix, R)
 import qualified Numeric.LinearAlgebra as M
+import           Numeric.Morpheus.MatrixReduce(columnSum)
 import           System.Random.MWC (Gen, create)
 
 type LearnRate = Double
@@ -19,7 +20,7 @@ type LearnRate = Double
 -- simplest possible representation of a layer fully connected to previous layer
 data Layer = Layer -- fully connected, for now
     { w    :: Matrix R -- m x n matrix of weights
-    , b    :: Vector R -- 1 x n bias vector
+    , b    :: Matrix R -- 1 x n bias vector
     , spec :: LayerSpec
     } deriving Show
 
@@ -33,7 +34,7 @@ data LayerState = LayerState
 -- gradients w respect to w, b of a specific layer
 data LayerGradients = LayerGradients
     { jw :: Matrix R
-    , jb :: Vector R
+    , jb :: Matrix R
     , dCdz :: Matrix R } deriving Show
 
 data NetworkState = NetworkState
@@ -73,7 +74,7 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
             dadz  = M.cmap (sigmoid' . sigm . spec $ layer) z -- n x p -> n x p
             dCdz' =  dCda * dadz
         in [ LayerGradients { jw   = M.tr xs <> dCdz'
-                            , jb   = VS.fromList $ VS.sum <$> M.toColumns dCdz'
+                            , jb   = M.asRow $ columnSum dCdz'
                             , dCdz = dCdz' } ]
     backprop' xs (l:l':ls) =
         let bps@(lastBS:_) = backprop' (a l) $ l':ls
@@ -82,7 +83,7 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
             wLast          = w (layer l')
             dCdz'          = (dCdz lastBS <> M.tr wLast) * dadz
         in LayerGradients { jw   = M.tr xs <> dCdz'
-                          , jb   = VS.fromList $ VS.sum <$> M.toColumns dCdz'
+                          , jb   = M.asRow $ columnSum dCdz'
                           , dCdz = dCdz'
                           } : bps
 
@@ -91,7 +92,7 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
 -- on a layer with p neurons and m neurons in the previous layer
 forwardLayer :: Layer -> Matrix R -> LayerState
 forwardLayer layer@Layer {..} x =
-    let z =  (x <> w) + M.fromRows [b]
+    let z =  (x <> w) + b
         a =  M.cmap (sigmoid . sigm $ spec) z
     in LayerState { .. }
 
@@ -109,7 +110,7 @@ forwardNetwork NeuralNetwork { .. } xs ys = NetworkState xs theta layerStates
 initializeLayer :: (PrimMonad m) => Gen (PrimState m) -> Int -> LayerSpec -> m Layer
 initializeLayer rg m spec = do
     let n = size spec
-    b  <- DG.standardNormalV rg n
+    b  <- DG.standardNormalM rg 1 n
     w  <- DG.standardNormalM rg m n
     return Layer { .. }
 
@@ -117,8 +118,7 @@ initializeNetwork :: NetworkSpec -> IO NeuralNetwork
 initializeNetwork NetworkSpec {..} = do
     rg       <- create
     let dims = inputDims : (size <$> layerSpecs)
-    unLayers <- zipWithM (initializeLayer rg) dims layerSpecs
-    return NeuralNetwork { .. }
+    NeuralNetwork <$> zipWithM (initializeLayer rg) dims layerSpecs
 
 -- update the weights in the layer according to the gradients stored
 -- in the backprop structure.

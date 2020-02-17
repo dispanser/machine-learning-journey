@@ -68,7 +68,7 @@ iLoveBackPropagation = do
 
 evalNetwork :: NN.NeuralNetwork -> Double -> (Double, Double)
 evalNetwork nn x =
-    let nss = NN.forwardNetwork nn (M.scalar x) (M.fromColumns [M.fromList [0, 0]])
+    let nss = NN.forwardNetwork nn (M.scalar x) (M.asColumn $ M.fromList [0, 0])
         res = NN.a . RU.last $ NN.layerStates nss
         [[x', y']] = VS.toList <$> M.toRows res
     in (x', 1-y')
@@ -76,7 +76,7 @@ evalNetwork nn x =
 slice :: Int -> IO (Matrix R, Matrix R)
 slice n = do
     dataset <- readDataset
-    let Just inp = M.fromColumns . (:[]) . VS.take n . VS.convert <$> DS.colByName' dataset "s"
+    let Just inp = M.asColumn . VS.take n . VS.convert <$> DS.colByName' dataset "s"
     let Just out = M.fromColumns . (VS.take n . VS.convert <$>) <$> sequence [
             DS.colByName' dataset "x", DS.colByName' dataset "y"]
     return (inp, out)
