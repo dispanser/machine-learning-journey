@@ -76,10 +76,19 @@ evalNetwork nn x =
 slice :: Int -> IO (Matrix R, Matrix R)
 slice n = do
     dataset <- readDataset
-    let Just inp = M.asColumn . VS.take n . VS.convert <$> DS.colByName' dataset "s"
-    let Just out = M.fromColumns . (VS.take n . VS.convert <$>) <$> sequence [
+    let Just sData = VS.convert <$> DS.colByName' dataset "s"
+    let inp = M.asColumn . vtake n $ sData
+    let Just out = M.fromColumns . (vtake n . VS.convert <$>) <$> sequence [
             DS.colByName' dataset "x", DS.colByName' dataset "y"]
     return (inp, out)
+
+vtake :: Int -> VS.Vector R -> VS.Vector R
+vtake n vs =
+    let n'   = M.size vs
+        reps = (n' + n - 1) `div` n'
+        vs'  = M.vjoin $ replicate reps vs
+    in VS.take n vs'
+
 
 readDataset :: IO DS.Dataset
 readDataset = do

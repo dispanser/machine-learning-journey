@@ -39,6 +39,8 @@ library:
     - random
     - hashable
     - Chart
+    - binary
+    - bytestring
 
 executables:
   examples:

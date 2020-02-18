@@ -8,7 +8,6 @@ module ML.NN01 where
 import qualified Relude.Unsafe as RU
 import           Control.Monad.Primitive (PrimMonad, PrimState)
 import           Data.Vector.Storable (Vector)
-import qualified Data.Vector.Storable as VS
 import qualified ML.Data.Generate as DG
 import           Numeric.LinearAlgebra (Matrix, R)
 import qualified Numeric.LinearAlgebra as M
@@ -70,7 +69,7 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
     backprop' :: Matrix R -> [LayerState] -> [LayerGradients]
     backprop' _  []               = []
     backprop' xs [LayerState{..}] =
-        let dCda  = M.scale 2 (a - ys) -- n x p - n x p -> n x p
+        let dCda  = M.scale (2 / fromIntegral (M.rows a)) (a - ys) -- n x p - n x p -> n x p
             dadz  = M.cmap (sigmoid' . sigm . spec $ layer) z -- n x p -> n x p
             dCdz' =  dCda * dadz
         in [ LayerGradients { jw   = M.tr xs <> dCdz'
@@ -104,7 +103,8 @@ forwardNetwork NeuralNetwork { .. } xs ys = NetworkState xs theta layerStates
            let st = forwardLayer l x'
            in st : go (a st) ls
        theta = let res = a (RU.last layerStates)
-                   err = M.cmap (**2) $ ys - res
+                   n   = fromIntegral $ M.rows ys
+                   err = M.scale (1/n) . M.cmap (**2) $ ys - res
                in M.sumElements err
 
 initializeLayer :: (PrimMonad m) => Gen (PrimState m) -> Int -> LayerSpec -> m Layer
