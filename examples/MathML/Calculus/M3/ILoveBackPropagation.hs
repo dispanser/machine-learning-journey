@@ -19,7 +19,6 @@ import qualified Data.Vector.Storable as VS
 import qualified ML.Dataset as DS
 import qualified ML.Dataset.CSV as DSV
 import qualified ML.NN01 as NN
-import qualified Data.List.Split as S
 import qualified Visuals.Image as VI
 import qualified Codec.Picture as JP
 
@@ -54,15 +53,17 @@ main =
 
 iLoveBackPropagation :: IO ()
 iLoveBackPropagation = do
+    let learnRate = 0.1
     nn <- NN.initializeNetwork $ NN.NetworkSpec 1 [
-        NN.LayerSpec 6 NN.Tanh 0.005, NN.LayerSpec 7 NN.Tanh 0.003 , NN.LayerSpec 2 NN.Tanh 0.002 ]
-    (inp, out) <- slice 100
+        -- NN.LayerSpec 6 NN.Tanh 0.002, NN.LayerSpec 15 NN.Tanh 0.001 , NN.LayerSpec 2 NN.Tanh 0.002 ]
+        NN.LayerSpec 6 NN.Tanh 0.5, NN.LayerSpec 7 NN.Tanh 0.3 , NN.LayerSpec 2 NN.Tanh 0.2 ]
+    (inp, out) <- slice 200
     let nss = NN.train' inp out nn
-    let n = 300
+    let n = 100
     mapM_ (print . NN.theta . snd) $ everyNth (n `div` 10) $ take n $  RU.tail nss
-    let res = RU.last . take n $ nss
-    let evalHeart = evalNetwork $ fst res
-    print $ fst res
+    -- let res = RU.last . take n $ nss
+    -- let evalHeart = evalNetwork $ fst res
+    -- print $ fst res
     -- JP.writePng  "/tmp/heart.png" $ VI.imageFromPixelMap $
     --     VI.generateTimeSeriesImage evalHeart 1024 768
 
@@ -94,6 +95,3 @@ readDataset :: IO DS.Dataset
 readDataset = do
     Right ds <- DS.parseFullDataset <$> DSV.readRawData "data/mml/ILoveBackPropagation.csv"
     return ds
-
-everyNth :: Int -> [a] -> [a]
-everyNth n xs = RU.head <$> S.chunksOf n xs

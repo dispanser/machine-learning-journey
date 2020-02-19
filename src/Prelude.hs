@@ -4,10 +4,13 @@ module Prelude
        , debugShow
        , traceSome
        , matrixDim
+       , everyNth
        ) where
 
 import Relude
+import qualified Relude.Unsafe as RU
 import qualified Debug.Trace as D
+import qualified Data.List.Split as S
 import qualified Numeric.LinearAlgebra as M
 
 debugShow :: (Show a, Show b) => b -> a -> a
@@ -27,8 +30,11 @@ traceSome prefix f x =
     let msg = show prefix <> ": " <> show (f x)
     in myTrace msg x
 
+myTrace :: String -> a -> a
 -- myTrace = flip const
 myTrace = D.trace
 
 type Pred a = a -> Bool
 
+everyNth :: Int -> [a] -> [a]
+everyNth n xs = RU.last <$> S.chunksOf n xs

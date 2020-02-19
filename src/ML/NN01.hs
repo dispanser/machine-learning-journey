@@ -7,7 +7,7 @@ module ML.NN01 where
 
 import qualified Relude.Unsafe as RU
 import           Control.Monad.Primitive (PrimMonad, PrimState)
-import           Data.Vector.Storable (Vector)
+import qualified Data.Vector.Storable as VS
 import qualified ML.Data.Generate as DG
 import           Numeric.LinearAlgebra (Matrix, R)
 import qualified Numeric.LinearAlgebra as M
@@ -47,6 +47,7 @@ data LayerSpec = LayerSpec
     { size  :: Int
     , sigm  :: Sigmoid
     , alpha :: R } deriving Show
+
 -- network spec: number of inputs, number of outputs, and n numbers
 -- representing n hidden layers w/ n potentially differnt sigmoids
 data NetworkSpec   = NetworkSpec
@@ -140,3 +141,5 @@ train' xs ys nn = iterate step (nn, undefined)
 train :: Matrix R -> Matrix R -> Int -> NeuralNetwork -> NeuralNetwork
 train xs ys n = fst . RU.head . drop (n-1) . train' xs ys
 
+oneHotLabel :: Integral a => a -> VS.Vector Double
+oneHotLabel hot = VS.generate 10 (\idx -> if idx == fromIntegral hot then 1 else 0)

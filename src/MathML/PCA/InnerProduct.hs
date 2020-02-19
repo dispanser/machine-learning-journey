@@ -10,15 +10,20 @@ lengthBy :: LA.Matrix R -> LA.Vector R -> R
 lengthBy a x = sqrt $ innerProduct a x x
 
 radBy :: LA.Matrix R -> LA.Vector R -> LA.Vector R -> R
-radBy a x y = acos $ innerProduct a x y / ((lengthBy a x) * (lengthBy a y))
+radBy a x y = acos $ innerProduct a x y / (lengthBy a x * lengthBy a y)
 
+ones :: Int -> LA.Vector R
 ones n = LA.vector $ replicate n 1
 
 
+ip :: LA.Matrix R -> LA.Vector R -> LA.Vector R -> R
 ip  = innerProduct
+
+id2, id3 :: Matrix R
 id2 = ident 2
 id3 = ident 3
 
+v123, v321 :: LA.Vector R
 v123 = (LA.vector [1, 2, 3])
 v321 = (LA.vector [3, 2, 1])
 
