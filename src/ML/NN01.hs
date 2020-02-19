@@ -133,10 +133,10 @@ updateNetwork nn gs = nn
     { unLayers = zipWith updateLayer (unLayers nn) gs }
 
 train' :: Matrix R -> Matrix R -> NeuralNetwork -> [(NeuralNetwork, NetworkState)]
-train' xs ys nn = iterate step (nn, undefined)
- where step (nn, _) = let ns  = forwardNetwork nn xs ys
-                          bp  = backprop ys ns
-                      in  (updateNetwork nn bp, ns)
+train' xs ys initialNetwork = iterate step (initialNetwork, undefined)
+ where step (nn', _) = let ns = forwardNetwork nn' xs ys
+                           bp = backprop ys ns
+                       in  (updateNetwork nn' bp, ns)
 
 train :: Matrix R -> Matrix R -> Int -> NeuralNetwork -> NeuralNetwork
 train xs ys n = fst . RU.head . drop (n-1) . train' xs ys
