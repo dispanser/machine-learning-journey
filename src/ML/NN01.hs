@@ -12,7 +12,8 @@ import qualified Data.Vector.Storable as VS
 import qualified ML.Data.Generate as DG
 import           Numeric.LinearAlgebra (Matrix, R)
 import qualified Numeric.LinearAlgebra as M
-import           Numeric.Morpheus.MatrixReduce(columnSum)
+import           Numeric.Morpheus.MatrixReduce (columnSum)
+import qualified Numeric.Morpheus.Activation as MA
 import           System.Random.MWC (Gen, create)
 
 type LearnRate = Double
@@ -46,7 +47,7 @@ newtype NeuralNetwork = NeuralNetwork { unLayers :: [Layer] } deriving Show
 
 data LayerSpec = LayerSpec
     { size  :: Int
-    , sigm  :: Sigmoid
+    , sigm  :: Activation
     , alpha :: R } deriving Show
 
 -- network spec: number of inputs, number of outputs, and n numbers
@@ -55,15 +56,17 @@ data NetworkSpec   = NetworkSpec
     { inputDims  :: Int
     , layerSpecs :: [LayerSpec] } deriving Show
 
-data Sigmoid = ReLu | Tanh deriving (Show, Eq)
+data Activation = ReLu | Tanh | Sigmoid deriving (Show, Eq)
 
-sigmoid :: Sigmoid -> R -> R
-sigmoid Tanh = tanh
-sigmoid ReLu = max 0
+sigmoid :: Activation -> Matrix R -> Matrix R
+sigmoid Tanh = MA.tanh_
+sigmoid ReLu = MA.relu
+sigmoid Sigmoid = MA.sigmoid
 
-sigmoid' :: Sigmoid -> R -> R
-sigmoid' Tanh x = (1/cosh x) ** 2
-sigmoid' ReLu x = if x < 0 then 0 else 1
+sigmoid' :: Activation -> Matrix R -> Matrix R
+sigmoid' Tanh = MA.tanhGradient
+sigmoid' ReLu = MA.reluGradient
+sigmoid' Sigmoid = MA.sigmoidGradient
 
 backprop :: Matrix R -> NetworkState -> [LayerGradients]
 backprop ys NetworkState { .. } = backprop' a0 layerStates
@@ -72,7 +75,7 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
     backprop' _  []               = []
     backprop' xs [LayerState{..}] =
         let dCda  = M.scale (2 / fromIntegral (M.rows a)) (a - ys) -- n x p - n x p -> n x p
-            dadz  = M.cmap (sigmoid' . sigm . spec $ layer) z -- n x p -> n x p
+            dadz  = (sigmoid' . sigm . spec $ layer) z -- n x p -> n x p
             dCdz' =  dCda * dadz
         in [ LayerGradients { jw   = M.tr xs <> dCdz'
                             , jb   = M.asRow $ columnSum dCdz'
@@ -80,7 +83,7 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
     backprop' xs (l:l':ls) =
         let bps@(lastBS:_) = backprop' (a l) $ l':ls
             sg'            = sigmoid' . sigm . spec . layer $ l
-            dadz           = M.cmap sg' $ z l
+            dadz           = sg' $ z l
             wLast          = w (layer l')
             dCdz'          = (dCdz lastBS <> M.tr wLast) * dadz
         in LayerGradients { jw   = M.tr xs <> dCdz'
@@ -94,7 +97,7 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
 forwardLayer :: Layer -> Matrix R -> LayerState
 forwardLayer layer@Layer {..} x =
     let z =  (x <> w) + b
-        a =  M.cmap (sigmoid . sigm $ spec) z
+        a =  (sigmoid . sigm $ spec) z
     in LayerState { .. }
 
 forwardNetwork :: NeuralNetwork -> Matrix R -> Matrix R -> NetworkState

@@ -18,7 +18,7 @@ import qualified ML.NN01 as NN
 data Layer a = Layer
     { w :: Matrix a
     , b :: Vector a
-    , a :: NN.Sigmoid }
+    , a :: NN.Activation }
 
 -- currently not used. We're modelling our Sigmoid based on the approach from
 -- the previous attempt as a pair of functions (activation and its derivative).

@@ -53,7 +53,6 @@ main =
 
 iLoveBackPropagation :: IO ()
 iLoveBackPropagation = do
-    let learnRate = 0.1
     nn <- NN.initializeNetwork $ NN.NetworkSpec 1 [
         -- NN.LayerSpec 6 NN.Tanh 0.002, NN.LayerSpec 15 NN.Tanh 0.001 , NN.LayerSpec 2 NN.Tanh 0.002 ]
         NN.LayerSpec 6 NN.Tanh 0.5, NN.LayerSpec 7 NN.Tanh 0.3 , NN.LayerSpec 2 NN.Tanh 0.2 ]
