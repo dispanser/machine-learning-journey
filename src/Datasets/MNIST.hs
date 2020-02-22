@@ -28,3 +28,6 @@ parseLabelFile = do
     _ <- B.skip 4
     n <- fromIntegral <$> B.getWord32be
     replicateM n B.getWord8
+
+convertImage :: VS.Vector Word8 -> VS.Vector Double
+convertImage = VS.map ((/255) . fromIntegral)

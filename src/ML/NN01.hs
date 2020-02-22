@@ -7,6 +7,7 @@ module ML.NN01 where
 
 import qualified Relude.Unsafe as RU
 import           Control.Monad.Primitive (PrimMonad, PrimState)
+import qualified Data.List.Split as S
 import qualified Data.Vector.Storable as VS
 import qualified ML.Data.Generate as DG
 import           Numeric.LinearAlgebra (Matrix, R)
@@ -141,5 +142,28 @@ train' xs ys initialNetwork = iterate step (initialNetwork, undefined)
 train :: Matrix R -> Matrix R -> Int -> NeuralNetwork -> NeuralNetwork
 train xs ys n = fst . RU.head . drop (n-1) . train' xs ys
 
-oneHotLabel :: Integral a => a -> VS.Vector Double
-oneHotLabel hot = VS.generate 10 (\idx -> if idx == fromIntegral hot then 1 else 0)
+iteration :: Matrix R -> Matrix R -> NeuralNetwork -> NeuralNetwork
+iteration xs ys nn =
+    let ns = forwardNetwork nn xs ys
+        bp = backprop ys ns
+    in  updateNetwork nn bp
+
+epoch :: [VS.Vector R] -> [VS.Vector R] -> Int -> NeuralNetwork -> NeuralNetwork
+epoch xs ys batchSize nn =
+    let batches          = S.chunksOf batchSize xs `zip` S.chunksOf batchSize ys
+        go nn' []                = nn'
+        go nn' ((xs', ys'):rest) = go (iteration (M.fromRows xs') (M.fromRows ys') nn') rest
+    in  go nn batches
+
+
+result :: NetworkState -> Matrix R
+result = a . RU.last . layerStates
+
+numCorrect :: Eq a => VS.Storable a => VS.Vector a -> VS.Vector a -> Int
+numCorrect v1 v2 = VS.sum $ VS.zipWith (\a b -> if a == b then 1 else 0) v1 v2
+
+encodeOneHot :: Integral a => a -> VS.Vector Double
+encodeOneHot hot = VS.generate 10 (\idx -> if idx == fromIntegral hot then 1 else 0)
+
+decodeOneHot :: VS.Vector Double -> Int
+decodeOneHot = fromIntegral . VS.maxIndex
