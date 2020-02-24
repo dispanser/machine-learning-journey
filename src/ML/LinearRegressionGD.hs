@@ -16,6 +16,7 @@ import qualified Data.List as DL
 import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
 import           ML.Data.Summary
+import           ML.Data.Vector (vmean)
 import           ML.Dataset (Feature(..))
 import qualified ML.Dataset as DS
 import qualified ML.Model as M
@@ -23,7 +24,6 @@ import           ML.Model (ModelSpec(..), Predictor(..), ModelInit(..))
 import qualified ML.LinearRegression as LR
 import qualified Numeric.LinearAlgebra as LA
 import           Numeric.LinearAlgebra (Matrix, (#>), (<#), (<.>))
-import qualified Numeric.Morpheus.Statistics as MS
 
 data LinearRegressionGD = LinearRegressionGD
     { lrCoefficients   :: Vector Double
@@ -114,8 +114,8 @@ fitLinearRegression cfg inputCols response =
         xs = VS.convert <$> inputCols :: [Vector Double]
         xX = LR.prepareMatrix n xs
         p  = pred $ LA.cols xX
-        yMean            = MS.mean y
-        yDelta           = y - (VS.replicate n yMean)
+        yMean            = vmean y
+        yDelta           = y - VS.replicate n yMean
         lrTss            = yDelta <.> yDelta
         lrDF             = n - p - 1
         step'            = step (learnRate cfg) (penaltyTerm cfg) xX y

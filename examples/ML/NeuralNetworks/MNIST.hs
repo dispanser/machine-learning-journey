@@ -39,7 +39,8 @@ loadMNist = do
 trainMNist :: [Int] -> TestData -> Int -> Int -> IO NN.NeuralNetwork
 trainMNist ds td epochs batchSize = do
     nn <- NN.initializeNetwork $ createNetworkArchitecture ds
-    print $ "train @ batchSize = " ++ show batchSize ++ " network: " ++ NN.printNetworkConfig nn
+    print $ "train @ batchSize = " ++ show batchSize ++ " network: " ++
+        NN.printNetworkConfig nn
     let images = M.toRows $ trainingInput td
         labels = M.toRows $ trainingLabels td
         epochResults = take epochs $ iterate (NN.epoch images labels batchSize) nn
@@ -72,7 +73,8 @@ classificationError ys ns =
 evaluateMNist :: [Int] -> Int -> Int -> IO ()
 evaluateMNist ds epochs batchSize = do
     testData@TestData {..}  <- loadMNist
-    _ <- timed ("finished @ batch size " ++ show batchSize) $ trainMNist ds testData epochs batchSize
+    _ <- timed ("finished @ batch size " ++ show batchSize) $
+        trainMNist ds testData epochs batchSize
     return ()
 
 timed :: Show a => a -> IO b -> IO b

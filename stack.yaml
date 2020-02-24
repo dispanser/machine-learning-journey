@@ -1,4 +1,4 @@
-resolver: lts-14.1
+resolver: lts-14.23
 packages:
   - '.'
 extra-deps:
@@ -12,8 +12,6 @@ flags:
     hmatrix:
         openblas:              true
         disable-default-paths: true
-    hmatrix-morpheus:
-        openblas:              true
 nix:
   enable: true
-  packages: [ openblasCompat, liblapack, zlib ]
+  packages: [ openblasCompat, zlib ]

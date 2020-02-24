@@ -1,7 +1,4 @@
 {-# LANGUAGE RecordWildCards #-}
-{-
-   very basic implementation of neural networks, based on 10 Days of Grad, Day 1
--}
 
 module ML.NN01 where
 
@@ -12,8 +9,6 @@ import qualified Data.Vector.Storable as VS
 import qualified ML.Data.Generate as DG
 import           Numeric.LinearAlgebra (Matrix, R)
 import qualified Numeric.LinearAlgebra as M
-import           Numeric.Morpheus.MatrixReduce (columnSum)
-import qualified Numeric.Morpheus.Activation as MA
 import           System.Random.MWC (Gen, create)
 
 type LearnRate = Double
@@ -59,14 +54,17 @@ data NetworkSpec   = NetworkSpec
 data Activation = ReLu | Tanh | Sigmoid deriving (Show, Eq)
 
 sigmoid :: Activation -> Matrix R -> Matrix R
-sigmoid Tanh = MA.tanh_
-sigmoid ReLu = MA.relu
-sigmoid Sigmoid = MA.sigmoid
+sigmoid Tanh = tanh
+sigmoid ReLu = M.cmap (max 0)
+sigmoid Sigmoid = M.cmap (\x -> 1 / (1 + exp (-x)))
 
 sigmoid' :: Activation -> Matrix R -> Matrix R
-sigmoid' Tanh = MA.tanhGradient
-sigmoid' ReLu = MA.reluGradient
-sigmoid' Sigmoid = MA.sigmoidGradient
+sigmoid' Tanh = \x -> let t = tanh x in 1 - t^2
+sigmoid' ReLu = M.cmap (\x -> if x > 0 then 1 else 0)
+sigmoid' Sigmoid =
+    let sg x = let ex = exp(-x)
+               in  ex / (1 + ex)^2
+    in M.cmap sg
 
 backprop :: Matrix R -> NetworkState -> [LayerGradients]
 backprop ys NetworkState { .. } = backprop' a0 layerStates
@@ -74,8 +72,8 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
     backprop' :: Matrix R -> [LayerState] -> [LayerGradients]
     backprop' _  []               = []
     backprop' xs [LayerState{..}] =
-        let dCda  = M.scale (2 / fromIntegral (M.rows a)) (a - ys) -- n x p - n x p -> n x p
-            dadz  = (sigmoid' . sigm . spec $ layer) z -- n x p -> n x p
+        let dCda  = M.scale (2 / fromIntegral (M.rows a)) (a - ys)
+            dadz  = (sigmoid' . sigm . spec $ layer) z
             dCdz' =  dCda * dadz
         in [ LayerGradients { jw   = M.tr xs <> dCdz'
                             , jb   = M.asRow $ columnSum dCdz'
@@ -91,9 +89,12 @@ backprop ys NetworkState { .. } = backprop' a0 layerStates
                           , dCdz = dCdz'
                           } : bps
 
+columnSum :: Matrix R -> M.Vector R
+columnSum xs = M.vector $ M.sumElements <$> M.toColumns xs
+
 -- process one layer by taking its input values (matrix n x m)
 -- and produce the outputs of the current layer (matrix n x p)
--- on a layer with p neurons and m neurons in the previous layer
+-- on a layer with p neurons and m neurons in the precious layer
 forwardLayer :: Layer -> Matrix R -> LayerState
 forwardLayer layer@Layer {..} x =
     let z =  (x <> w) + b
@@ -155,9 +156,10 @@ epoch :: [VS.Vector R] -> [VS.Vector R] -> Int -> NeuralNetwork -> NeuralNetwork
 epoch xs ys batchSize nn =
     let batches          = S.chunksOf batchSize xs `zip` S.chunksOf batchSize ys
         go nn' []                = nn'
-        go nn' ((xs', ys'):rest) = go (iteration (M.fromRows xs') (M.fromRows ys') nn') rest
+        go nn' ((xs', ys'):rest) =
+            let nn'' = iteration (M.fromRows xs') (M.fromRows ys') nn'
+            in go nn'' rest
     in  go nn batches
-
 
 result :: NetworkState -> Matrix R
 result = a . RU.last . layerStates

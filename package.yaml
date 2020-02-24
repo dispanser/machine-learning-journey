@@ -30,7 +30,6 @@ dependencies:
   - mwc-probability
   - primitive
   - hmatrix
-  - hmatrix-morpheus
   - JuicyPixels
   - time
 

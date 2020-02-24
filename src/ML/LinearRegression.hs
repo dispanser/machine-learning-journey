@@ -12,9 +12,9 @@ import qualified ML.Data.Feature.Internal as F
 import qualified ML.Dataset as DS
 import           ML.Model (ModelSpec(..), ModelInit(..))
 import           ML.Data.Summary
+import           ML.Data.Vector (vmean)
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
-import qualified Numeric.Morpheus.Statistics as MS
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Scientific as Scientific
@@ -117,7 +117,7 @@ fitLR ms inputCols response =
             M.toColumns $ M.linearSolveLS xX $ M.fromColumns [y]
         residuals        = y - xX #> lrCoefficients
         lrRss            = residuals <.> residuals
-        yMean            = MS.mean y
+        yMean            = vmean y
         yDelta           = y - (VS.replicate n yMean)
         lrTss            = yDelta <.> yDelta
         mse'             = lrRss / fromIntegral lrDF
