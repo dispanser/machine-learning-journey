@@ -170,3 +170,9 @@ encodeOneHot hot = VS.generate 10 (\idx -> if idx == fromIntegral hot then 1 els
 
 decodeOneHot :: VS.Vector Double -> Int
 decodeOneHot = fromIntegral . VS.maxIndex
+
+printNetworkConfig :: NeuralNetwork -> String
+printNetworkConfig NeuralNetwork {..} =
+    let printLayer l = show (size $ spec l) ++ "xD [" ++ show (sigm $ spec l) ++
+            "] @ " ++ show (alpha $ spec l)
+    in intercalate "," $ printLayer <$> unLayers

@@ -36,17 +36,21 @@ loadMNist = do
         , testInput      = testImages
         , testLabels     = testOutput }
 
-trainMNist :: TestData -> Int -> Int -> IO NN.NeuralNetwork
-trainMNist td epochs batchSize = do
-    print $ "starting @ batchSize = " ++ show batchSize
-    nn <- NN.initializeNetwork $ NN.NetworkSpec 784
-        [ NN.LayerSpec 100 NN.Tanh 0.01
-        , NN.LayerSpec 10  NN.Tanh 0.01 ]
+trainMNist :: [Int] -> TestData -> Int -> Int -> IO NN.NeuralNetwork
+trainMNist ds td epochs batchSize = do
+    nn <- NN.initializeNetwork $ createNetworkArchitecture ds
+    print $ "train @ batchSize = " ++ show batchSize ++ " network: " ++ NN.printNetworkConfig nn
     let images = M.toRows $ trainingInput td
         labels = M.toRows $ trainingLabels td
         epochResults = take epochs $ iterate (NN.epoch images labels batchSize) nn
     mapM_ (uncurry $ evaluateModel td) (zip [1..] epochResults)
     return $ RU.last epochResults
+
+-- create a network for mnist using the provided list of ints as neurons in dense (hidden) layers.
+createNetworkArchitecture :: [Int] -> NN.NetworkSpec
+createNetworkArchitecture ds =
+    NN.NetworkSpec 784 $ map (\d -> NN.LayerSpec d NN.Sigmoid 0.02)
+        ds ++ [NN.LayerSpec 10 NN.Sigmoid 0.02]
 
 evaluateModel :: TestData -> Int -> NN.NeuralNetwork -> IO ()
 evaluateModel TestData { .. } epoch nn = do
@@ -65,10 +69,10 @@ classificationError ys ns =
         wrongPreds   = n - correctPreds
     in fromIntegral wrongPreds / fromIntegral n
 
-evaluateMNist :: Int -> Int -> IO ()
-evaluateMNist epochs batchSize = do
+evaluateMNist :: [Int] -> Int -> Int -> IO ()
+evaluateMNist ds epochs batchSize = do
     testData@TestData {..}  <- loadMNist
-    _ <- timed ("finished @ batch size " ++ show batchSize) $ trainMNist testData epochs batchSize
+    _ <- timed ("finished @ batch size " ++ show batchSize) $ trainMNist ds testData epochs batchSize
     return ()
 
 timed :: Show a => a -> IO b -> IO b
@@ -82,10 +86,10 @@ timed desc action = do
 
 main :: IO ()
 main = do
-    evaluateMNist 50 1
-    evaluateMNist 90 2
-    evaluateMNist 135 4
-    evaluateMNist 230 8
-    evaluateMNist 300 16
-    evaluateMNist 375 32
-    evaluateMNist 420 64
+    evaluateMNist [32] 3 1
+    -- evaluateMNist 90 2
+    -- evaluateMNist 135 4
+    -- evaluateMNist 230 8
+    -- evaluateMNist 300 16
+    -- evaluateMNist 375 32
+    -- evaluateMNist 420 64
