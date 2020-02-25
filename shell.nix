@@ -1,8 +1,13 @@
 let
-  jupyter = import (builtins.fetchGit {
-    url = https://github.com/tweag/jupyterWith;
-    rev = "";
-  }) {};
+  jupyterLibPath = /home/pi/wip/haskell/data-haskell/tweag/jupyterWith;
+  jupyter = import jupyterLibPath {};
+
+#  jupyter = import (builtins.fetchGit {
+#    url = https://github.com/tweag/jupyterWith;
+#    rev = "";
+#  }) {};
+
+# dispanser-ml-notes = pkgs.callCabal2nix "dispanser-ml-notes" /home/pi/wip/haskell/data-haskell/isl/. {};
 
   iPython = jupyter.kernels.iPythonWith {
     name = "python";
