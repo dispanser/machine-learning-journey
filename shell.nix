@@ -11,7 +11,7 @@ let
 
   iHaskell = jupyter.kernels.iHaskellWith {
     name = "haskell";
-    packages = p: with p; [ hvega formatting ];
+    packages = p: with p; [ hvega formatting csv ];
   };
 
   jupyterEnvironment =
