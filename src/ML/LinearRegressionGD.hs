@@ -12,6 +12,7 @@ module ML.LinearRegressionGD where
 
 import           GHC.Show (Show(..))
 import qualified Relude.Unsafe as RU
+import           Data.Text (Text)
 import qualified Data.List as DL
 import qualified Data.Vector.Storable as VS
 import           Data.Vector.Storable (Vector)
@@ -38,7 +39,7 @@ data LinearRegressionGD = LinearRegressionGD
 
 type LearningRate     = Double
 type PenaltyWeight    = Double
-type TrainingFinished = Pred TrainingState
+type TrainingFinished = TrainingState -> Bool
 
 -- to solve the gradient descent, the cost function is not necessary,
 -- but it might be nice if you wanna plot cost functions over training
@@ -183,7 +184,7 @@ ridgePenalty l = PenaltyTerm
 -- http://www.cs.cmu.edu/~ggordon/10725-F12/slides/08-general-gd.pdf
 lassoPenalty :: PenaltyWeight -> PenaltyTerm
 lassoPenalty l = PenaltyTerm
-    { costFunction  = VS.imap (noIntercept identity)
+    { costFunction  = VS.imap (noIntercept id)
     , penaltyDeriv  = VS.imap (noIntercept signum)
     , penaltyWeight = l }
 
@@ -209,10 +210,5 @@ summarizeLinearRegressionGD lr@LinearRegressionGD { .. } =
 formatCoefficientInfo :: Text -> Double -> Double -> Text
 formatCoefficientInfo name coef scCoef =
     let formatString = (left 17 ' ' %. stext) % " | " % floatF 10 5 % " | " % floatF 10 5
-    in sformat formatString name
-        (coef)
-        (scCoef)
-
-formatTrainingState :: TrainingState -> [Text]
-formatTrainingState ts@TrainingState {..} = [Prelude.show ts]
+    in sformat formatString name coef scCoef
 

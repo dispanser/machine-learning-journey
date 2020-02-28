@@ -1,1 +1,1 @@
---command "stack ghci --nix isl:lib isl:exe:examples --main-is isl:exe:examples"
+--command "stack ghci --nix dispanser-ml-notes:lib dispanser-ml-notes:exe:examples --main-is dispanser-ml-notes:exe:examples"

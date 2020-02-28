@@ -21,10 +21,15 @@ import qualified GHC.Show as GS
 import           ML.Data.Vector ( noScaling, summarizeVector, replaceNAs
                                 , parseNumbers , scale01, scaleWith)
 import           ML.Data.Summary
+import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
+import           Data.Maybe (listToMaybe, fromMaybe)
+import           Data.String (IsString(..))
 import qualified Data.Text as T
+import           Data.Text (Text)
 import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
+import           Text.Read (readMaybe)
 
 type Scaling           = (Double, Double)
 type ScaleStrategy     = Vector Double -> Scaling
@@ -81,7 +86,7 @@ instance Summary Feature where
   -- invalid case: cont feat w/ multiple columns
   summary (Feature (Continuous fn _) xss) =
       ["invalid coding for feature '" <> fn <>
-        "': should be a single column but got " <> show (length xss) <> " columns"]
+        "': should be a single column but got " <> (T.pack . show) (length xss) <> " columns"]
 
 instance Show FeatureSpace where
   show fs = GS.show (knownFeats fs) <> " | ignored = "
@@ -89,10 +94,10 @@ instance Show FeatureSpace where
 
 createFeature :: FeatureType -> NonEmpty Text -> Feature
 createFeature (Auto ss name') xs@(x :| _) =
-    let parseFirst = readEither x :: Either Text Double
+    let parseFirst = readMaybe $ T.unpack x :: Maybe Double
     in case parseFirst of
-        Right _ -> createContinuous ss name' xs
-        Left _  -> createCategorical  name' xs
+        Just _  -> createContinuous ss name' xs
+        Nothing -> createCategorical   name' xs
 createFeature (Cont n s) xs = createContinuous s n xs
 createFeature (Cat  n)  xs  = createFeature (Auto noScaling n) xs
 

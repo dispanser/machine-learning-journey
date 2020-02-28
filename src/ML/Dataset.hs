@@ -22,6 +22,10 @@ module ML.Dataset
 
 import           GHC.Show (Show(..))
 import qualified Data.Map.Strict as M
+import           Data.Maybe (listToMaybe, fromMaybe)
+import           Data.List (sortOn)
+import           Data.List.NonEmpty (NonEmpty)
+import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
@@ -41,7 +45,7 @@ data RawData = RawData
 -- there is some duplication, columns are part of the feature, but we're just
 -- exposing functions over our data so it's probably ok to just provide both.
 data Dataset = Dataset
-    { dsName'      :: T.Text
+    { dsName'      :: Text
     , dsFeatures   :: [Feature]
     , dsNumRows'   :: Int
     , dsNumCols'   :: Int
@@ -51,7 +55,7 @@ data Dataset = Dataset
     }
 
 instance Show Dataset where
-  show = toString . unlines . summary
+  show = T.unpack . T.unlines . summary
 
 instance Summary Dataset where
   summary ds = concatMap summary $ dsFeatures ds
@@ -90,7 +94,10 @@ createFromFeatures name feats =
                        then return $ F.baselineColumn vss
                        else return $ V.replicate dsNumRows' 0.0
         findMissingClass _ = Nothing
-        colByName' c = whenNothing (M.lookup c columnIndex) (findMissingClass c)
+        colByName' c = case M.lookup c columnIndex of
+                         Nothing   -> findMissingClass c
+                         something -> something
+
     in Dataset { .. }
 
 extractDataColumns :: Dataset -> FeatureSpace -> [Vector Double]

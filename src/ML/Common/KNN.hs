@@ -4,6 +4,7 @@
 module ML.Common.KNN where
 
 import qualified Relude.Unsafe as RU
+import           Data.List (sortOn)
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic as GV
 import qualified Data.Vector.Storable as VS
@@ -24,4 +25,4 @@ findNearest KNearest {..} k x0 =
     in take k $ snd <$> res
 
 initKNN :: [V.Vector Double] -> V.Vector a -> KNearest a
-initKNN xs y = KNearest (fromColumns $ VS.convert <$> xs) y
+initKNN xs = KNearest (fromColumns $ VS.convert <$> xs)

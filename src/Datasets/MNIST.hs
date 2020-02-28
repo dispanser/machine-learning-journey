@@ -1,9 +1,11 @@
 module Datasets.MNIST where
 
+import           Control.Monad (replicateM)
 import qualified Data.Binary.Get      as B
 import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Vector.Storable as VS
+import           Data.Word (Word8)
 
 readImages :: FilePath -> IO [VS.Vector Word8]
 readImages f = do

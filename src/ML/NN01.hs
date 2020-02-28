@@ -3,7 +3,9 @@
 module ML.NN01 where
 
 import qualified Relude.Unsafe as RU
+import           Control.Monad (zipWithM)
 import           Control.Monad.Primitive (PrimMonad, PrimState)
+import           Data.List (intercalate)
 import qualified Data.List.Split as S
 import qualified Data.Vector.Storable as VS
 import qualified ML.Data.Generate as DG

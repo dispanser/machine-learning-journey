@@ -12,6 +12,7 @@ module ML.Data.Column.Internal
     , mkColumn
     ) where
 
+import           Data.Text (Text)
 import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
 import qualified Statistics.Sample as S

@@ -3,7 +3,10 @@
 
 module ML.Dataset.CSV where
 
-import           Data.List (lookup)
+import           Data.Either.Combinators (maybeToRight)
+import           Data.List (lookup, transpose, isPrefixOf)
+import           Data.List.NonEmpty (NonEmpty (..))
+import           Data.Maybe (listToMaybe, fromMaybe)
 import qualified Data.Text as T
 import qualified Data.Vector.Unboxed as VU
 import           ML.Dataset (RawData(..))
@@ -15,14 +18,14 @@ readRawData :: FilePath -> IO RawData
 readRawData = readRawData' (const True)
 
 -- read raw data from input
-readRawData' :: Pred Text -> FilePath -> IO RawData
+readRawData' :: (T.Text -> Bool) -> FilePath -> IO RawData
 readRawData' p f = do
     csv <- parseCSVFromFile f
     let cleaned = filter acceptRecord <$> csv
     case cleaned of
         Right (header:body) ->
-            let bodyColumns = (toText <$>) <$> transpose body
-                fullHeaders = toText <$> header
+            let bodyColumns = (T.pack <$>) <$> transpose body
+                fullHeaders = T.pack <$> header
                 headers     = filter p $ fullHeaders
                 features    = filter (p . fst) $ zip fullHeaders bodyColumns
                 lookupCol n = do

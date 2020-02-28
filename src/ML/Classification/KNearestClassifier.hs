@@ -4,6 +4,8 @@
 
 module ML.Classification.KNearestClassifier where
 
+import           Data.List (sort, sortOn, nub)
+import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic as GV
@@ -30,8 +32,8 @@ createKNNClassifier ms xs y =
 
 initKNNClassifier :: Ord a => [V.Vector Double] -> V.Vector a -> KNNClassifier a
 initKNNClassifier xs y =
-    let classes = ordNub $ V.toList y
-        knn     =  initKNN xs y
+    let classes = nub $ V.toList y
+        knn     = initKNN xs y
     in KNNClassifier { .. }
 
 classifyKNN :: (GV.Vector v Double, Ord a) => KNNClassifier a -> Int -> v Double -> [(Double, a)]

@@ -6,6 +6,7 @@ import           System.Random.MWC.Probability (Gen, standardNormal, samples)
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Storable as VS
 import           Control.Monad.Primitive (PrimMonad, PrimState)
+import           Control.Monad (replicateM)
 import           Numeric.LinearAlgebra (Matrix, R, fromColumns)
 
 standardNormalV :: (PrimMonad m) => Gen (PrimState m) -> Int -> m (VS.Vector Double)

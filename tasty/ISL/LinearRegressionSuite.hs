@@ -7,7 +7,6 @@ module ISL.LinearRegressionSuite where
 
 import           Base
 import qualified ML.Model as M
-import           ML.Data.Summary
 import           ML.Dataset.CSV (readRawData, readRawData')
 import           ML.Dataset (Dataset(..))
 import qualified ML.Dataset as DS
@@ -21,13 +20,13 @@ import qualified Data.Vector.Storable as V
 
 spec_babyRegression :: Spec
 spec_babyRegression = do
-    describe "linear-solver based  linear regression" $ do
-        babyRegression (LR.fitLinearRegression)
-    describe "gradient-descent based linear regression" $ do
+    describe "linear-solver based  linear regression" $
+        babyRegression LR.fitLinearRegression
+    describe "gradient-descent based linear regression" $
         babyRegression $ LRGD.linearRegressionGD 0.06 500
 
 babyRegression :: M.Predictor a => (M.ModelSpec -> M.ModelInit a) -> Spec
-babyRegression cfgF = do
+babyRegression cfgF =
     describe "on some toy example" $ do
         -- perfect line: y = 2x-1
         let x         = contFeat "x" [2.0, 3.0, 4.0 :: Double]
@@ -177,14 +176,14 @@ spec_Regularization = do
             checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
                             , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
                             , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
-        xit "produce the same coefficents as R for l=1" $ do
-            let model = LRGD.ridgeRegression 1 0.001 20000 ms
-                lr    = M.fitDataset model ds
-                coefs = LR.recoverOriginalCoefficients lr
-            mapM_ print $ summary lr
-            checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
-                            , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
-                            , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
+        -- xit "produce the same coefficents as R for l=1" $ do
+        --     let model = LRGD.ridgeRegression 1 0.001 20000 ms
+        --         lr    = M.fitDataset model ds
+        --         coefs = LR.recoverOriginalCoefficients lr
+        --     mapM_ print $ summary lr
+        --     checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
+        --                     , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
+        --                     , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
     describe "the lasso" $ do
         -- it "produce the coefficents stated in the book for l=11498" $ do
         --     let model = LRGD.ridgeRegression 11498 0.00005 1000 ms
@@ -199,14 +198,14 @@ spec_Regularization = do
             checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
                             , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
                             , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
-        xit "produce the same coefficents as R for l=1" $ do
-            let model = LRGD.lassoRegression 1 0.001 100000 ms
-                lr    = M.fitDataset model ds
-                coefs = LR.recoverOriginalCoefficients lr
-            mapM_ print $ summary lr
-            checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
-                            , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
-                            , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
+        -- xit "produce the same coefficents as R for l=1" $ do
+        --     let model = LRGD.lassoRegression 1 0.001 100000 ms
+        --         lr    = M.fitDataset model ds
+        --         coefs = LR.recoverOriginalCoefficients lr
+        --     mapM_ print $ summary lr
+        --     checkList coefs [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
+        --                     , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
+        --                     , -24.76, 0.28, -1.04, -2.38, 6.23, -3.49]
     describe "gradient descent regression" $ do
         let originalCoefficients = [ 163.10, 0.37, -1.98, -0.17, 0.13, -0.17, 0.81
                                    , 1.45, -0.81, -116.85, -3.36, 7.50, 4.33, 62.60
@@ -223,13 +222,13 @@ spec_Regularization = do
             checkList coefs originalCoefficients
 
 spec_EmptyClassLinearRegression :: Spec
-spec_EmptyClassLinearRegression = do
+spec_EmptyClassLinearRegression =
     -- when only training on a subset of the data, it can thusly happen that
     -- some one-hot encoded class vector is 0, leading to a singular matrix
     -- and no solution to the linear equation
-    describe "linear-solver based  linear regression" $ do
+    describe "linear-solver based  linear regression" $
         it "should seemlessly handle empty class variables" $ do
-            let cat      = catFeat "x1"  [ "blue", "blue", "blue", "red", "red" ]
+            let cat      = DS.createCategorical "x1"  [ "blue", "blue", "blue", "red", "red" ]
                 oth      = contFeat "x2" [ 13, 14, 15, 8, 7 ]
                 yc       = contFeat "y"  [ 1.0, 1.1, 1.2, 0.3, 0.6 ]
                 ds       = DS.createFromFeatures "hspec" [cat, oth, yc]

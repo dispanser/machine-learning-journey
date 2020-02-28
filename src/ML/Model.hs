@@ -8,6 +8,7 @@ module ML.Model where
 
 import qualified Relude.Unsafe as RU
 import qualified ML.Dataset as DS
+import           Control.Monad (forM)
 import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as VU
 import           ML.Dataset ( Dataset(..), FeatureSpace(..)
@@ -43,7 +44,7 @@ data ModelSpec = ModelSpec
     , response  :: Metadata } deriving (Show)
 
 fitDataset :: ModelInit a -> Dataset -> a
-fitDataset mi = fit' mi identity
+fitDataset mi = fit' mi id
 
 fitSubset :: ModelInit a -> DS.RowSelector -> Dataset -> a
 fitSubset mi rs = fit' mi $ DS.filterDataColumn rs
@@ -54,7 +55,7 @@ fit' ModelInit { .. } ct ds = fitF featureCols responseCol
        featureCols = ct <$> (DS.extractDataColumns ds $ features' modelSpec)
 
 predictDataset :: Model a => a -> Dataset -> Prediction
-predictDataset pr = predict' pr identity
+predictDataset pr = predict' pr id
 
 predict' :: Model a => a -> DS.ColumnTransformer -> Dataset -> Prediction
 predict' m ct ds = predict m featureCols

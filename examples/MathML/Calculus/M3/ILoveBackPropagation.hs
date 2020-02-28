@@ -6,15 +6,18 @@ module MathML.Calculus.M3.ILoveBackPropagation where
 {-
     Mathematics for Machine Learning, Course on Multivariate Calculus, Coursera
 
-    Building a basic neural network and train it using derivatives of the cost function, by hand.
+    Building a basic neural network and train it using derivatives of the cost
+    function, by hand.
 
-    Note that we're following the provided notebook very closely, so there won't be any
-    kind of interesting engineering. Baseline is python, you get what you pay for.
+    Note that we're following the provided notebook very closely, so there
+    won't be any kind of interesting engineering. Baseline is python, you get
+    what you pay for.
 -}
 
 import qualified Relude.Unsafe as RU
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (><))
+import qualified Data.List.Split as S
 import qualified Data.Vector.Storable as VS
 import qualified ML.Dataset as DS
 import qualified ML.Dataset.CSV as DSV
@@ -94,3 +97,6 @@ readDataset :: IO DS.Dataset
 readDataset = do
     Right ds <- DS.parseFullDataset <$> DSV.readRawData "data/mml/ILoveBackPropagation.csv"
     return ds
+
+everyNth :: Int -> [a] -> [a]
+everyNth n xs = RU.last <$> S.chunksOf n xs

@@ -7,6 +7,7 @@ module ML.DatasetSuite where
 import           ML.Dataset
 import           Test.Tasty.Hspec (Spec)
 import           Test.Hspec
+import           Data.List (sortOn)
 import qualified Data.Vector.Unboxed as V
 
 fDouble, fNAs, fCat :: Feature

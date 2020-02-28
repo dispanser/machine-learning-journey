@@ -1,16 +1,17 @@
-name: isl
-version: '0.0.0'
+name: dispanser-ml-notes
+version: '0.0.1'
 category: template
-synopsis: Introduction to Statistical Learning, Haskell Edition
+synopsis: Some implementations of various ML algorithms and concepts.
 description: >
-  aims to reproduce examples and exercises from 'Introduction to Statistical Learning' using Haskell
+  personal playground for developing a better understanding of machine learning, including
+  some implementations of basic algorithms.
 author: Thomas Peiselt
-github: dispanser/isl-haskell
+github: dispanser/machine-learning-journey
 license: MIT
 
 ghc-options: -Wall
 dependencies:
-  - base-noprelude >= 4.8.0 && <5
+  - base >= 4.8.0 && <5
   - relude
   - split
   - vector
@@ -21,8 +22,6 @@ dependencies:
   - formatting
   - scientific
   - pretty-simple
-  - Frames
-  - vinyl
   - ghc-prim
   - microlens
   - statistics
@@ -41,17 +40,21 @@ library:
     - Chart
     - binary
     - bytestring
+    - either
 
 executables:
   examples:
     source-dirs: examples
     main: ML/NeuralNetworks/MNIST.hs
     dependencies:
-      - isl
+      - dispanser-ml-notes
     ghc-options:
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
+      - -O2
+      - -optc-ffast-math
+      - -fexcess-precision
       - -main-is ML.NeuralNetworks.MNIST
 
 tests:
@@ -59,7 +62,7 @@ tests:
     source-dirs: tasty
     main: Discover.hs
     dependencies:
-      - isl
+      - dispanser-ml-notes
       - hspec
       - QuickCheck
       - tasty
@@ -75,5 +78,5 @@ benchmarks:
     ghc-options:
       - -threaded
     dependencies:
-      - isl
+      - dispanser-ml-notes
       - criterion

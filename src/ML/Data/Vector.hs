@@ -13,6 +13,9 @@ module ML.Data.Vector
     , vmean ) where
 
 import           ML.Data.Summary
+import           Data.Either (fromRight)
+import           Text.Read (readEither)
+import           Data.Text (Text, unpack)
 import qualified Data.Vector.Generic as VG
 import           Data.Vector.Unboxed (Vector)
 import qualified Data.Vector.Unboxed as V
@@ -49,7 +52,7 @@ summarizeVector name sc xsScaled =
 parseNumbers :: [Text] -> V.Vector Double
 parseNumbers xs =
     let fallback = sqrt $ -1
-    in replaceNAs $ V.fromList $ fromRight fallback . readEither <$> xs
+    in replaceNAs $ V.fromList $ fromRight fallback . readEither . unpack <$> xs
 
 scale01 :: ScaleStrategy
 scale01 xs =

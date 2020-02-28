@@ -88,7 +88,7 @@ timed desc action = do
 
 main :: IO ()
 main = do
-    evaluateMNist [32] 3 1
+    evaluateMNist [32] 20 1
     -- evaluateMNist 90 2
     -- evaluateMNist 135 4
     -- evaluateMNist 230 8

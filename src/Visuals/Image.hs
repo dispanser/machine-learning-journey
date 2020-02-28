@@ -2,8 +2,10 @@ module Visuals.Image where
 
 import qualified Codec.Picture as JP
 import           Codec.Picture.Types (Pixel8)
+import           Data.Foldable (foldl')
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
+import           Data.Word (Word8)
 
 data PixelMap = PixelMap
     { pixels :: HashMap (Int, Int) Int

@@ -15,7 +15,10 @@ import           ML.Data.Summary
 import           ML.Data.Vector (vmean)
 import qualified Numeric.LinearAlgebra as M
 import           Numeric.LinearAlgebra (Matrix, R, (#>), (<.>))
+import           Control.Applicative ((<|>))
+import           Data.Maybe (fromMaybe, listToMaybe)
 import qualified Data.List as L
+import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Scientific as Scientific
 import qualified Data.Vector as V
@@ -118,12 +121,12 @@ fitLR ms inputCols response =
         residuals        = y - xX #> lrCoefficients
         lrRss            = residuals <.> residuals
         yMean            = vmean y
-        yDelta           = y - (VS.replicate n yMean)
+        yDelta           = y - VS.replicate n yMean
         lrTss            = yDelta <.> yDelta
         mse'             = lrRss / fromIntegral lrDF
         lrStandardErrors = M.takeDiag $ M.scale mse' (
             M.inv . M.unSym $ M.mTm xX) ** 0.5
-        fs'              = foldl' removeColumn (features' ms) (fst <$> removedCols)
+        fs'              = L.foldl' removeColumn (features' ms) (fst <$> removedCols)
         lrModelSpec      = ms { features' =  fs' }
     in  LinearRegression { .. }
 
@@ -153,7 +156,7 @@ removeLabel fs colName = do
 
 predictLinearRegression :: Vector Double -> [Vector Double] -> Vector Double
 predictLinearRegression bs xs =
-    let n  = fromMaybe 0 $ VS.length . fst <$> uncons xs
+    let n  = fromMaybe 0 $ VS.length . fst <$> L.uncons xs
         xX = prepareMatrix n xs
     in if M.cols xX == VS.length bs
           then xX #> bs
@@ -210,7 +213,7 @@ recoverOriginalCoefficients m =
     let ms = M.modelSpec' m
         fs = features' ms
         rs = response ms
-        Just (intercept, regularCoefficients) = uncons $ VS.toList $ coefficients m
+        Just (intercept, regularCoefficients) = L.uncons $ VS.toList $ coefficients m
         (rShift, rScale)   = scaling rs
         scalingFactors     = scalingFactor <$> metadataStream fs
         scaledCoefficients = zipWith (\c (_, sc) -> c * rScale / sc)
