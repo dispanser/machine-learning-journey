@@ -16,7 +16,9 @@ let
 
   iHaskell = jupyter.kernels.iHaskellWith {
     name = "haskell";
-    packages = p: with p; [ hvega formatting csv ];
+    packages = p: with p; [ 
+		(p.callPackage /home/pi/wip/haskell/data-haskell/isl/dispanser-ml-notes.nix {})
+		hvega formatting csv split ];
   };
 
   jupyterEnvironment =
